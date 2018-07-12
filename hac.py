@@ -13,9 +13,9 @@ def getCard(card):
     cardnume_code = card[0]
     card_num = 0
     card_num_type = 0
-    if card_type == 'H':
+    if card_type == 'S':
         card_num_type = 1
-    elif card_type == 'S':
+    elif card_type == 'H':
         card_num_type = 2
     elif card_type == 'D':
         card_num_type = 3
@@ -82,16 +82,16 @@ class PokerSocket(object):
         for card in (hands):
             self.hole.append(getCard(card))
 
-        print 'my_Call_Bet:{}'.format(self.my_Call_Bet)
-        print 'my_Raise_Bet:{}'.format(self.my_Raise_Bet)
-        print 'board:{}'.format(self.board)
-        print 'total_bet:{}'.format(self.Table_Bet)
-        print 'hands:{}'.format(self.hole)
+        print '...my_Call_Bet:{}'.format(self.my_Call_Bet)
+        print '...my_Raise_Bet:{}'.format(self.my_Raise_Bet)
+        print '...board:{}'.format(self.board)
+        print '...total_bet:{}'.format(self.Table_Bet)
+        print '...hands:{}'.format(self.hole)
 
         if self.board == []:
             round = 'preflop'
 
-        print "round:{}".format(round)
+        print "...round:{}".format(round)
 
 
         # aggresive_Tight = PokerBotPlayer(preflop_threshold_Tight, aggresive_threshold)
@@ -111,13 +111,13 @@ class PokerSocket(object):
             self.board = []
             for card in (boards):
                 self.board.append(getCard(card))
-            print 'number_players:{}'.format(self.number_players)
-            print 'board:{}'.format(self.board)
-            print 'total_bet:{}'.format(self.Table_Bet)
+            print '...number_players:{}'.format(self.number_players)
+            print '...board:{}'.format(self.board)
+            print '...total_bet:{}'.format(self.Table_Bet)
         elif action == "__bet":
             action,amount=self.getAction(data)
-            print "action: {}".format(action)
-            print "action amount: {}".format(amount)
+            print "...action: {}".format(action)
+            print "...action amount: {}".format(amount)
             self.ws.send(json.dumps({
                 "eventName": "__action",
                 "data": {
@@ -127,8 +127,8 @@ class PokerSocket(object):
                 }}))
         elif action == "__action":
             action,amount=self.getAction(data)
-            print "action: {}".format(action)
-            print "action amount: {}".format(amount)
+            print "...action: {}".format(action)
+            print "...action amount: {}".format(amount)
 
             self.ws.send(json.dumps({
                 "eventName": "__action",
@@ -138,7 +138,7 @@ class PokerSocket(object):
                     "amount": amount
                 }}))
         elif action == "__round_end":
-            print "Game Over"
+            print "...Game Over"
             self.total_bet=0
             players=data['players']
             isWin=False
@@ -152,8 +152,8 @@ class PokerSocket(object):
                     else:
                         isWin = True
                     winChips=winMoney
-            print "winPlayer:{}".format(isWin)
-            print "winChips:{}".format(winChips)
+            print "...winPlayer:{}".format(isWin)
+            print "...winChips:{}".format(winChips)
             self.pokerbot.game_over(isWin,winChips,data)
 
     def doListen(self):
@@ -170,8 +170,7 @@ class PokerSocket(object):
                 msg = json.loads(result)
                 event_name = msg["eventName"]
                 data = msg["data"]
-                print event_name
-                print data
+                print "->", event_name, ":", json.dumps(data)
                 self.takeAction(event_name, data)
         except Exception, e:
             print e.message
@@ -184,7 +183,7 @@ class PotOddsPokerBot(PokerBot):
         self.aggresive_passive_threshold=aggresive_passive_threshold
         self.bet_tolerance=bet_tolerance
     def game_over(self, isWin,winChips,data):
-        print "Game Over"
+        print "...Game Over"
 
     def getCardID(self,card):
         rank=card.rank
@@ -241,12 +240,12 @@ class PotOddsPokerBot(PokerBot):
                 #rival_rank = evaluator.evaluate_hand(hand_sample, board_sample)
                 round+=1
             except Exception, e:
-                print e.message
+                print " *** ERROR", e.message
                 continue
         # The large rank value means strong hand card
-        print "Win:{}".format(win)
+        print "...Win:{}".format(win)
         win_prob = win / float(round)
-        print "win_prob:{}".format(win_prob)
+        print "...win_prob:{}".format(win_prob)
         return win_prob
 
     def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
@@ -254,11 +253,11 @@ class PotOddsPokerBot(PokerBot):
         self.number_players=number_players
 
         my_Raise_Bet=(my_Chips*self.bet_tolerance)/(1-self.bet_tolerance)
-        print "Round:{}".format(round)
+        print "...Round:{}".format(round)
         score = HandEvaluator.evaluate_hand(hole, board)
-        print "score:{}".format(score)
+        print "...score:{}".format(score)
         #score = math.pow(score, self.number_players)
-        print "score:{}".format(score)
+        print "...score:{}".format(score)
 
         if round == 'preflop':
             if score >= self.preflop_tight_loose_threshold:
@@ -308,7 +307,7 @@ class MontecarloPokerBot(PokerBot):
 
     def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
         win_rate =self.get_win_prob(hole,board,number_players)
-        print "win Rate:{}".format(win_rate)
+        print "...win Rate:{}".format(win_rate)
         if win_rate > 0.5:
             if win_rate > 0.85:
                 # If it is extremely likely to win, then raise as much as possible
@@ -388,7 +387,7 @@ class MontecarloPokerBot(PokerBot):
             except Exception, e:
                 #print e.message
                 continue
-        print "Win:{}".format(win)
+        print "...Win:{}".format(win)
         win_prob = win / float(round)
         return win_prob
 
@@ -423,7 +422,9 @@ if __name__ == '__main__':
         #myPokerBot=PotOddsPokerBot(preflop_threshold_Tight,passive_threshold,bet_tolerance)
 
         playerName="54088-a"
-        connect_url="http://poker-dev.wrs.club:3001/"
+        connect_url="ws://poker-dev.wrs.club:3001/"
+        print "...name: {}".format(playerName), "url: {}".format(connect_url)
+
         simulation_number=100
         bet_tolerance=0.1
         #myPokerBot=FreshPokerBot()
