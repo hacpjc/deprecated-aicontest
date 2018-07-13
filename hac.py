@@ -8,6 +8,39 @@ import random
 import json
 import numpy as np
 
+# OK;
+def getCardID(card):
+    rank = card.rank
+    suit = card.suit
+    suit = suit - 1
+    id = (suit * 13) + rank
+    return id
+
+# OK;
+def genCardFromId(cardID):
+    if int(cardID)>13:
+        rank=int(cardID)%13
+        if rank==0:
+            suit=int((int(cardID)-rank)/13)
+        else:
+            suit = int((int(cardID) - rank) / 13) + 1
+
+        if(rank==0):
+            rank=14
+        else:
+            rank+=1
+        return Card(rank,suit)
+    else:
+        suit=1
+        rank=int(cardID)
+        if (rank == 0):
+            rank = 14
+        else:
+            rank+=1
+        return Card(rank,suit)
+
+
+# OK;
 def getCard(card):
     card_type = card[1]
     cardnume_code = card[0]
@@ -36,6 +69,13 @@ def getCard(card):
         card_num = int(cardnume_code)
 
     return Card(card_num,card_num_type)
+
+def pick_unused_card(card_num, used_card):
+    used = [getCardID(card) for card in used_card]
+    unused = [card_id for card_id in range(1, 53) if card_id not in used]
+    choiced = random.sample(unused, card_num)
+    return [genCardFromId(card_id) for card_id in choiced]
+
 
 class PokerBot(object):
     def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
@@ -82,16 +122,16 @@ class PokerSocket(object):
         for card in (hands):
             self.hole.append(getCard(card))
 
-        print '...my_Call_Bet:{}'.format(self.my_Call_Bet)
-        print '...my_Raise_Bet:{}'.format(self.my_Raise_Bet)
-        print '...board:{}'.format(self.board)
-        print '...total_bet:{}'.format(self.Table_Bet)
-        print '...hands:{}'.format(self.hole)
+        print ('...my_Call_Bet:', format(self.my_Call_Bet))
+        print ('...my_Raise_Bet:', format(self.my_Raise_Bet))
+        print ('...board:', format(self.board))
+        print ('...total_bet:', format(self.Table_Bet))
+        print ('...hands:', format(self.hole))
 
         if self.board == []:
             round = 'preflop'
 
-        print "...round:{}".format(round)
+        print ("...round:{}".format(round))
 
 
         # aggresive_Tight = PokerBotPlayer(preflop_threshold_Tight, aggresive_threshold)
@@ -111,13 +151,13 @@ class PokerSocket(object):
             self.board = []
             for card in (boards):
                 self.board.append(getCard(card))
-            print '...number_players:{}'.format(self.number_players)
-            print '...board:{}'.format(self.board)
-            print '...total_bet:{}'.format(self.Table_Bet)
+            print ('...number_players:{}'.format(self.number_players))
+            print ('...board:{}'.format(self.board))
+            print ('...total_bet:{}'.format(self.Table_Bet))
         elif action == "__bet":
             action,amount=self.getAction(data)
-            print "...action: {}".format(action)
-            print "...action amount: {}".format(amount)
+            print ("...action: {}".format(action))
+            print ("...action amount: {}".format(amount))
             self.ws.send(json.dumps({
                 "eventName": "__action",
                 "data": {
@@ -127,8 +167,8 @@ class PokerSocket(object):
                 }}))
         elif action == "__action":
             action,amount=self.getAction(data)
-            print "...action: {}".format(action)
-            print "...action amount: {}".format(amount)
+            print ("...action: {}".format(action))
+            print ("...action amount: {}".format(amount))
 
             self.ws.send(json.dumps({
                 "eventName": "__action",
@@ -138,7 +178,7 @@ class PokerSocket(object):
                     "amount": amount
                 }}))
         elif action == "__round_end":
-            print "...Game Over"
+            print ("...Game Over")
             self.total_bet=0
             players=data['players']
             isWin=False
@@ -152,8 +192,8 @@ class PokerSocket(object):
                     else:
                         isWin = True
                     winChips=winMoney
-            print "...winPlayer:{}".format(isWin)
-            print "...winChips:{}".format(winChips)
+            print ("...winPlayer:{}".format(isWin))
+            print ("...winChips:{}".format(winChips))
             self.pokerbot.game_over(isWin,winChips,data)
 
     def doListen(self):
@@ -170,10 +210,10 @@ class PokerSocket(object):
                 msg = json.loads(result)
                 event_name = msg["eventName"]
                 data = msg["data"]
-                print "->", event_name, ":", json.dumps(data)
+                print ("->", event_name, ":", json.dumps(data))
                 self.takeAction(event_name, data)
         except Exception, e:
-            print e.message
+            print (e.message)
             self.doListen()
 
 class PotOddsPokerBot(PokerBot):
@@ -183,42 +223,7 @@ class PotOddsPokerBot(PokerBot):
         self.aggresive_passive_threshold=aggresive_passive_threshold
         self.bet_tolerance=bet_tolerance
     def game_over(self, isWin,winChips,data):
-        print "...Game Over"
-
-    def getCardID(self,card):
-        rank=card.rank
-        suit=card.suit
-        suit=suit-1
-        id=(suit*13)+rank
-        return id
-
-    def genCardFromId(self,cardID):
-        if int(cardID)>13:
-            rank=int(cardID)%13
-            if rank==0:
-                suit=int((int(cardID)-rank)/13)
-            else:
-                suit = int((int(cardID) - rank) / 13) + 1
-
-            if(rank==0):
-                rank=14
-            else:
-                rank+=1
-            return Card(rank,suit)
-        else:
-            suit=1
-            rank=int(cardID)
-            if (rank == 0):
-                rank = 14
-            else:
-                rank+=1
-            return Card(rank,suit)
-
-    def _pick_unused_card(self,card_num, used_card):
-        used = [self.getCardID(card) for card in used_card]
-        unused = [card_id for card_id in range(1, 53) if card_id not in used]
-        choiced = random.sample(unused, card_num)
-        return [self.genCardFromId(card_id) for card_id in choiced]
+        print ("...Game Over")
 
     def get_win_prob(self,hand_cards, board_cards,simulation_number,num_players):
         win = 0
@@ -227,8 +232,8 @@ class PotOddsPokerBot(PokerBot):
         for i in range(simulation_number):
 
             board_cards_to_draw = 5 - len(board_cards)  # 2
-            board_sample = board_cards + self._pick_unused_card(board_cards_to_draw, board_cards + hand_cards)
-            unused_cards = self._pick_unused_card((num_players - 1)*2, hand_cards + board_sample)
+            board_sample = board_cards + pick_unused_card(board_cards_to_draw, board_cards + hand_cards)
+            unused_cards = pick_unused_card((num_players - 1)*2, hand_cards + board_sample)
             opponents_hole = [unused_cards[2 * i:2 * i + 2] for i in range(num_players - 1)]
 
             try:
@@ -240,12 +245,12 @@ class PotOddsPokerBot(PokerBot):
                 #rival_rank = evaluator.evaluate_hand(hand_sample, board_sample)
                 round+=1
             except Exception, e:
-                print " *** ERROR", e.message
+                print (" *** ERROR", e.message)
                 continue
         # The large rank value means strong hand card
-        print "...Win:{}".format(win)
+        print ("...Win:{}".format(win))
         win_prob = win / float(round)
-        print "...win_prob:{}".format(win_prob)
+        print ("...win_prob:{}".format(win_prob))
         return win_prob
 
     def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
@@ -253,11 +258,11 @@ class PotOddsPokerBot(PokerBot):
         self.number_players=number_players
 
         my_Raise_Bet=(my_Chips*self.bet_tolerance)/(1-self.bet_tolerance)
-        print "...Round:{}".format(round)
+        print ("...round:{}".format(round))
         score = HandEvaluator.evaluate_hand(hole, board)
-        print "...score:{}".format(score)
+        print ("...score:{}".format(score))
         #score = math.pow(score, self.number_players)
-        print "...score:{}".format(score)
+        print ("...score:{}".format(score))
 
         if round == 'preflop':
             if score >= self.preflop_tight_loose_threshold:
@@ -297,117 +302,117 @@ class PotOddsPokerBot(PokerBot):
                 #print 'change'
         return action, amount
 
-class MontecarloPokerBot(PokerBot):
-
-    def __init__(self, simulation_number):
-       self.simulation_number=simulation_number
-
-    def game_over(self, isWin,winChips,data):
-        pass
-
-    def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
-        win_rate =self.get_win_prob(hole,board,number_players)
-        print "...win Rate:{}".format(win_rate)
-        if win_rate > 0.5:
-            if win_rate > 0.85:
-                # If it is extremely likely to win, then raise as much as possible
-                action = 'raise'
-                amount = my_Raise_Bet
-            elif win_rate > 0.75:
-                # If it is likely to win, then raise by the minimum amount possible
-                action = 'raise'
-                amount = my_Raise_Bet
-            else:
-                # If there is a chance to win, then call
-                action = 'call'
-                amount=my_Call_Bet
-        else:
-            action = 'fold'
-            amount=0
-        return action,amount
-
-    def getCardID(self,card):
-        rank=card.rank
-        suit=card.suit
-        suit=suit-1
-        id=(suit*13)+rank
-        return id
-
-    def genCardFromId(self,cardID):
-        if int(cardID)>13:
-            rank=int(cardID)%13
-            if rank==0:
-                suit=int((int(cardID)-rank)/13)
-            else:
-                suit = int((int(cardID) - rank) / 13) + 1
-
-            if(rank==0):
-                rank=14
-            else:
-                rank+=1
-            return Card(rank,suit)
-        else:
-            suit=1
-            rank=int(cardID)
-            if (rank == 0):
-                rank = 14
-            else:
-                rank+=1
-            return Card(rank,suit)
-
-    def _pick_unused_card(self,card_num, used_card):
-
-        used = [self.getCardID(card) for card in used_card]
-        unused = [card_id for card_id in range(1, 53) if card_id not in used]
-        choiced = random.sample(unused, card_num)
-        return [self.genCardFromId(card_id) for card_id in choiced]
-
-    def get_win_prob(self,hand_cards, board_cards,num_players):
-
-        win = 0
-        round=0
-        evaluator = HandEvaluator()
-
-        for i in range(self.simulation_number):
-
-            board_cards_to_draw = 5 - len(board_cards)  # 2
-            board_sample = board_cards + self._pick_unused_card(board_cards_to_draw, board_cards + hand_cards)
-
-            unused_cards = self._pick_unused_card((num_players - 1) * 2, hand_cards + board_sample)
-            opponents_hole = [unused_cards[2 * i:2 * i + 2] for i in range(num_players - 1)]
-            #hand_sample = self._pick_unused_card(2, board_sample + hand_cards)
-
-            try:
-                opponents_score = [evaluator.evaluate_hand(hole, board_sample) for hole in opponents_hole]
-                my_rank = evaluator.evaluate_hand(hand_cards, board_sample)
-                if my_rank >= max(opponents_score):
-                    win += 1
-                #rival_rank = evaluator.evaluate_hand(hand_sample, board_sample)
-                round+=1
-            except Exception, e:
-                #print e.message
-                continue
-        print "...Win:{}".format(win)
-        win_prob = win / float(round)
-        return win_prob
-
-class FreshPokerBot(PokerBot):
-
-    def game_over(self, isWin,winChips,data):
-        pass
-
-    def declareAction(self,holes, boards, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
-        my_rank = HandEvaluator.evaluate_hand(holes, boards)
-        if my_rank>0.85:
-            action = 'raise'
-            amount = my_Raise_Bet
-        elif  my_rank>0.6:
-            action = 'call'
-            amount = my_Call_Bet
-        else:
-            action = 'fold'
-            amount = 0
-        return action,amount
+#class MontecarloPokerBot(PokerBot):
+#
+#    def __init__(self, simulation_number):
+#       self.simulation_number=simulation_number
+#
+#    def game_over(self, isWin,winChips,data):
+#        pass
+#
+#    def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
+#        win_rate =self.get_win_prob(hole,board,number_players)
+#        print "...win Rate:{}".format(win_rate)
+#        if win_rate > 0.5:
+#            if win_rate > 0.85:
+#                # If it is extremely likely to win, then raise as much as possible
+#                action = 'raise'
+#                amount = my_Raise_Bet
+#            elif win_rate > 0.75:
+#                # If it is likely to win, then raise by the minimum amount possible
+#                action = 'raise'
+#                amount = my_Raise_Bet
+#            else:
+#                # If there is a chance to win, then call
+#                action = 'call'
+#                amount=my_Call_Bet
+#        else:
+#            action = 'fold'
+#            amount=0
+#        return action,amount
+#
+#    def getCardID(self,card):
+#        rank=card.rank
+#        suit=card.suit
+#        suit=suit-1
+#        id=(suit*13)+rank
+#        return id
+#
+#    def genCardFromId(self,cardID):
+#        if int(cardID)>13:
+#            rank=int(cardID)%13
+#            if rank==0:
+#                suit=int((int(cardID)-rank)/13)
+#            else:
+#                suit = int((int(cardID) - rank) / 13) + 1
+#
+#            if(rank==0):
+#                rank=14
+#            else:
+#                rank+=1
+#            return Card(rank,suit)
+#        else:
+#            suit=1
+#            rank=int(cardID)
+#            if (rank == 0):
+#                rank = 14
+#            else:
+#                rank+=1
+#            return Card(rank,suit)
+#
+#    def _pick_unused_card(self,card_num, used_card):
+#
+#        used = [self.getCardID(card) for card in used_card]
+#        unused = [card_id for card_id in range(1, 53) if card_id not in used]
+#        choiced = random.sample(unused, card_num)
+#        return [self.genCardFromId(card_id) for card_id in choiced]
+#
+#    def get_win_prob(self,hand_cards, board_cards,num_players):
+#
+#        win = 0
+#        round=0
+#        evaluator = HandEvaluator()
+#
+#        for i in range(self.simulation_number):
+#
+#            board_cards_to_draw = 5 - len(board_cards)  # 2
+#            board_sample = board_cards + self._pick_unused_card(board_cards_to_draw, board_cards + hand_cards)
+#
+#            unused_cards = self._pick_unused_card((num_players - 1) * 2, hand_cards + board_sample)
+#            opponents_hole = [unused_cards[2 * i:2 * i + 2] for i in range(num_players - 1)]
+#            #hand_sample = self._pick_unused_card(2, board_sample + hand_cards)
+#
+#            try:
+#                opponents_score = [evaluator.evaluate_hand(hole, board_sample) for hole in opponents_hole]
+#                my_rank = evaluator.evaluate_hand(hand_cards, board_sample)
+#                if my_rank >= max(opponents_score):
+#                    win += 1
+#                #rival_rank = evaluator.evaluate_hand(hand_sample, board_sample)
+#                round+=1
+#            except Exception, e:
+#                #print e.message
+#                continue
+#        print "...Win:{}".format(win)
+#        win_prob = win / float(round)
+#        return win_prob
+#
+#class FreshPokerBot(PokerBot):
+#
+#    def game_over(self, isWin,winChips,data):
+#        pass
+#
+#    def declareAction(self,holes, boards, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
+#        my_rank = HandEvaluator.evaluate_hand(holes, boards)
+#        if my_rank>0.85:
+#            action = 'raise'
+#            amount = my_Raise_Bet
+#        elif  my_rank>0.6:
+#            action = 'call'
+#            amount = my_Call_Bet
+#        else:
+#            action = 'fold'
+#            amount = 0
+#        return action,amount
 
 if __name__ == '__main__':
         aggresive_threshold = 0.5
@@ -423,9 +428,9 @@ if __name__ == '__main__':
 
         playerName="54088-a"
         connect_url="ws://poker-dev.wrs.club:3001/"
-        print "...name: {}".format(playerName), "url: {}".format(connect_url)
+        print ("...name: {}".format(playerName), "url: {}".format(connect_url))
 
-        simulation_number=100
+        simulation_number=1000
         bet_tolerance=0.1
         #myPokerBot=FreshPokerBot()
         #myPokerBot=MontecarloPokerBot(simulation_number)
