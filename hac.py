@@ -7,6 +7,7 @@ import math
 import random
 import json
 import numpy as np
+import sys
 
 # OK;
 def getCardID(card):
@@ -124,6 +125,7 @@ class PokerSocket(object):
 
         print ('...my_Call_Bet:', format(self.my_Call_Bet))
         print ('...my_Raise_Bet:', format(self.my_Raise_Bet))
+        print ('...hole:', format(self.hole))
         print ('...board:', format(self.board))
         print ('...total_bet:', format(self.Table_Bet))
         print ('...hands:', format(self.hole))
@@ -177,8 +179,11 @@ class PokerSocket(object):
                     "playerName": self.playerName,
                     "amount": amount
                 }}))
+        elif action == "__game_over":
+            print("...table end")
+            sys.exit()
         elif action == "__round_end":
-            print ("...Game Over")
+            print ("...Round End")
             self.total_bet=0
             players=data['players']
             isWin=False
@@ -192,8 +197,7 @@ class PokerSocket(object):
                     else:
                         isWin = True
                     winChips=winMoney
-            print ("...winPlayer:{}".format(isWin))
-            print ("...winChips:{}".format(winChips))
+            print ("...winPlayer:", format(isWin), "winChips:", format(winChips))
             self.pokerbot.game_over(isWin,winChips,data)
 
     def doListen(self):
@@ -282,6 +286,9 @@ class PotOddsPokerBot(PokerBot):
                     if score >= TableOdds:
                         action = 'call'
                         amount = my_Call_Bet
+                    elif my_Call_Bet >= 500:
+                        action = 'call'
+                        amount = my_Call_Bet
                     else:
                         action = 'fold'
                         amount = 0
@@ -290,6 +297,12 @@ class PotOddsPokerBot(PokerBot):
                 if score >= TableOdds:
                     action = 'call'
                     amount = my_Call_Bet
+                elif my_Call_Bet >= 200:
+                    action = 'call'
+                    amount = my_Call_Bet
+                elif random.randrange(0, 3, 1) >= 2:
+                    action = 'call'
+                    amount = 0
                 else:
                     action = 'fold'
                     amount = 0
