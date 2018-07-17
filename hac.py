@@ -269,14 +269,37 @@ class PotOddsPokerBot(PokerBot):
         print ("...score:{}".format(score))
 
         if round == 'preflop':
-            if score >= self.preflop_tight_loose_threshold:
+            if (my_Chips / 10) >= my_Call_Bet:
                 action = 'call'
                 amount = my_Call_Bet
+            elif score >= self.preflop_tight_loose_threshold:
+                action = 'call'
+                amount = my_Call_Bet                
+            elif random.randrange(0, 1, 1) == 1:
+                action = 'call'
+                amount = my_Call_Bet
+                print ("...Random call")
             else:
                 action = 'fold'
                 amount = 0
         else:
-            if score >= self.aggresive_passive_threshold:
+            if score >= 0.92:
+                print ("...Secret Skill ***************")
+                if random.randrange(0, 2, 1) != 2:
+                    action = 'raise'
+                    amount = my_Raise_Bet
+                else:
+                    action = 'call'
+                    amount = my_Call_Bet                
+            elif score >= 0.9:
+                print ("...Winner Chance ***************")
+                if random.randrange(0, 1, 1) == 0:
+                    action = 'raise'
+                    amount = my_Raise_Bet
+                else:
+                    action = 'call'
+                    amount = my_Call_Bet
+            elif score >= random.uniform(0.8, 0.9):
                 TableOdds = (my_Raise_Bet+total_bet) / (my_Raise_Bet + Table_Bet)
                 if score >= TableOdds:
                     action = 'raise'
@@ -294,10 +317,20 @@ class PotOddsPokerBot(PokerBot):
                         amount = 0
             else:
                 TableOdds = (my_Call_Bet+total_bet) / (my_Call_Bet + Table_Bet)
-                if score >= TableOdds:
+                
+                if round == 'Turn' and score <= 0.2 and random.randrange(0, 1) == 0:
+                    action = 'fold'
+                    amount = 0
+                if round == 'River' and score <= 0.4 and my_Call_Bet < 100:
+                    action = 'fold'
+                    amount = 0
+                if round == 'River' and score <= 0.4 and my_Call_Bet > 500:
                     action = 'call'
                     amount = my_Call_Bet
-                elif my_Call_Bet >= 200:
+                elif score >= TableOdds:
+                    action = 'call'
+                    amount = my_Call_Bet
+                elif my_Call_Bet >= 500:
                     action = 'call'
                     amount = my_Call_Bet
                 elif random.randrange(0, 3, 1) >= 2:
@@ -443,15 +476,14 @@ if __name__ == '__main__':
 
         print ("...Start game with name: ", name, "url: ", connect_url)
 
-        aggresive_threshold = 0.5
-        passive_threshold = 0.7
+        aggresive_threshold = random.uniform(0.7, 0.8)
         preflop_threshold_Loose = 0.3
         preflop_threshold_Tight = 0.5
 
         playerName=name
         print ("...name: {}".format(playerName), "url: {}".format(connect_url))
 
-        simulation_number=1000
+        simulation_number=65536
         bet_tolerance=0.1
         #myPokerBot=FreshPokerBot()
         #myPokerBot=MontecarloPokerBot(simulation_number)
