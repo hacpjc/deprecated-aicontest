@@ -428,19 +428,27 @@ class PotOddsPokerBot(PokerBot):
 #        return action,amount
 
 if __name__ == '__main__':
+        if len(sys.argv) == 3: 
+            name = sys.argv[1] 
+        else: 
+            print (sys.argv[0], " <name> <url>") 
+            print (sys.argv[0], " <name> ws://poker-dev.wrs.club:3001/ ws://poker-training.vtr.trendnet.org:3001 ws://poker-battle.vtr.trendnet.org:3001") 
+            sys.exit() 
+     
+        if len(sys.argv) == 3: 
+            connect_url = sys.argv[2] 
+        else: 
+            print (format(sys.argv[0]), " <name> <url>") 
+            sys.exit()
+
+        print ("...Start game with name: ", name, "url: ", connect_url)
+
         aggresive_threshold = 0.5
         passive_threshold = 0.7
         preflop_threshold_Loose = 0.3
         preflop_threshold_Tight = 0.5
 
-        # Aggresive -loose
-        #myPokerBot=PotOddsPokerBot(preflop_threshold_Loose,aggresive_threshold,bet_tolerance)
-        #myPokerBot=PotOddsPokerBot(preflop_threshold_Tight,aggresive_threshold,bet_tolerance)
-        #myPokerBot=PotOddsPokerBot(preflop_threshold_Loose,passive_threshold,bet_tolerance)
-        #myPokerBot=PotOddsPokerBot(preflop_threshold_Tight,passive_threshold,bet_tolerance)
-
-        playerName="54088-a"
-        connect_url="ws://poker-dev.wrs.club:3001/"
+        playerName=name
         print ("...name: {}".format(playerName), "url: {}".format(connect_url))
 
         simulation_number=1000
