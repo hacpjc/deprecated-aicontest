@@ -125,10 +125,10 @@ class PokerSocket(object):
 
         print ('...my_Call_Bet:', format(self.my_Call_Bet))
         print ('...my_Raise_Bet:', format(self.my_Raise_Bet))
-        print ('...hole:', format(self.hole))
-        print ('...board:', format(self.board))
+        print ('...chips left:', format(self.my_Chips))
+        
+        print ('...hole:', format(self.hole), 'board: ', format(self.board))
         print ('...total_bet:', format(self.Table_Bet))
-        print ('...hands:', format(self.hole))
 
         if self.board == []:
             round = 'preflop'
@@ -283,9 +283,9 @@ class PotOddsPokerBot(PokerBot):
                 action = 'fold'
                 amount = 0
         else:
-            if score >= 0.92:
+            if score >= 0.93:
                 print ("...Secret Skill ***************")
-                if random.randrange(0, 2, 1) != 2:
+                if random.randrange(0, 1, 1) == 0:
                     action = 'raise'
                     amount = my_Raise_Bet
                 else:
@@ -293,12 +293,8 @@ class PotOddsPokerBot(PokerBot):
                     amount = my_Call_Bet                
             elif score >= 0.9:
                 print ("...Winner Chance ***************")
-                if random.randrange(0, 1, 1) == 0:
-                    action = 'raise'
-                    amount = my_Raise_Bet
-                else:
-                    action = 'call'
-                    amount = my_Call_Bet
+                action = 'call'
+                amount = my_Call_Bet
             elif score >= random.uniform(0.8, 0.9):
                 TableOdds = (my_Raise_Bet+total_bet) / (my_Raise_Bet + Table_Bet)
                 if score >= TableOdds:
@@ -318,15 +314,15 @@ class PotOddsPokerBot(PokerBot):
             else:
                 TableOdds = (my_Call_Bet+total_bet) / (my_Call_Bet + Table_Bet)
                 
-                if round == 'Turn' and score <= 0.2 and random.randrange(0, 1) == 0:
+                if round == 'Turn' and score <= 0.5 and random.randrange(0, 3, 1) > 0:
                     action = 'fold'
                     amount = 0
-                if round == 'River' and score <= 0.4 and my_Call_Bet < 100:
-                    action = 'fold'
-                    amount = 0
-                if round == 'River' and score <= 0.4 and my_Call_Bet > 500:
+                if round == 'River' and score > 0.6 and my_Call_Bet > 500:
                     action = 'call'
                     amount = my_Call_Bet
+                if round == 'River' and score <= 0.6 and random.randrange(0, 5, 1) > 0:
+                    action = 'fold'
+                    amount = 0
                 elif score >= TableOdds:
                     action = 'call'
                     amount = my_Call_Bet
