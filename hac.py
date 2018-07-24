@@ -119,28 +119,27 @@ def calc_mont_win_rate(holes, boards, max_sample):
 def get_my_power(holes, boards, my_chips, my_call_bet, playernum):
     global my_evaluator
     
-    # Normalize power to 0 ~ 100
+    # Calc strengh. Normalize power to 0 ~ 100
     mypow = my_evaluator.evaluate(boards, holes)
     mypow = (7642 - mypow) / float(7641)
     mypow = mypow * 100
     
-    win_rate = calc_mont_win_rate(holes, boards, 30000)
-    percent = win_rate / 100
+    # Guess win rate by random pickup
+    win_rate = calc_mont_win_rate(holes, boards, 65536)
+       
+    print ("...pow / win-rate: ", mypow, win_rate, "user: ", playernum)
+    mypow = (mypow + (win_rate * 2)) / float(3)
+    print ("...mypow avg: ", mypow)
     
-    win_rate = math.pow(percent, playernum - 1) * 100
-    
-    print ("...pow / rate", mypow, win_rate, "user", playernum)
-    mypow = ((mypow * 5) + win_rate) / float(6)
-    print ("...mypow", mypow)
-    
-    # Decrease power if chips is in danger, Increase power if chips is a lot
+    # Decrease power if chips is in danger
     rate = my_call_bet / float(my_call_bet + my_chips)
     rate = 1 - rate
     rate = rate * 100
+    print ("...my rich power: ", rate)
     
-    mypow = ((mypow * 9) + rate) / float(10)
+#    mypow = ((mypow * 4) + rate) / float(5)
     
-    print ("...my power is: ", mypow)
+    print ("...my final power is: ", mypow)
     return mypow
     
 # OK;
@@ -154,49 +153,10 @@ def get_random_hit(hitrate):
     
 # OK;
 def may_i_raise(my_power, my_raise_bet, my_chips):
-    if my_power < random.randrange(65, 75):
+    if my_power < random.randrange(80, 90):
         return False
     
-    # Can win! Try to raise if we have money
-    if my_raise_bet < (my_chips / 2):
-        return True
-    else:
-        return False
-
-def may_i_call_at_flop(my_power, my_call_bet, my_chips):
-    if my_power < random.randrange(5, 10):
-        return False
-    
-    if my_power >= random.randrange(5, 25):
-        return True
-    else:
-        return False
-    
-def may_i_call_at_turn(my_power, my_call_bet, my_chips):
-    if (my_chips < 100):
-        return True
-    
-    if my_power < random.randrange(15, 25):
-        return False
-    
-    if my_power >= random.randrange(30, 40):
-        return True
-    else:
-        return False
-
-def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
-    print("reiver spend: ", my_spend)
-    
-    if (my_chips < 100):
-        return True
-    
-    if (my_call_bet + my_spend) / float(my_call_bet + my_spend + my_chips) >= 0.5:
-        return True
-    
-    if my_power < random.randrange(25, 35):
-        return False
-    
-    return True
+    return get_random_hit(my_power)
 
 # OK; For preflop to decide to gamble or not.
 def may_i_call_at_preflop(my_hole, my_chips, my_call_bet):
@@ -213,6 +173,53 @@ def may_i_call_at_preflop(my_hole, my_chips, my_call_bet):
     
     print("...gamble rate: ", gamble_rate)
     return get_random_hit(gamble_rate)
+
+def may_i_call_at_flop(my_power, my_call_bet, my_chips):
+    if my_power < random.randrange(5, 10):
+        return False
+    
+    if my_power >= random.randrange(5, 25):
+        return True
+    else:
+        return False
+    
+def may_i_call_at_turn(my_power, my_call_bet, my_chips):
+    if (my_chips < 100):
+        return True
+    
+    if my_power < random.randrange(25, 35):
+        return False
+    
+    if my_power >= random.randrange(35, 45):
+        return True
+    else:
+        return False
+
+def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
+    percent = (my_call_bet) / float(my_call_bet + my_spend + my_chips)
+    print("river spend: ", my_spend, "power: ", my_power, "percent: ", percent)
+    
+    if (my_chips < 100):
+        return True
+    
+    if percent >= 0.8:
+        print ("...spend too many money mode")
+        if my_power < random.randrange(35, 40):
+            return False
+        else:
+            return True
+    elif percent >= 0.5:
+        print ("...spend normal money mode")
+        if my_power < random.randrange(40, 50):
+            return False
+        else:
+            return True
+    else:    
+        print ("...spend small money mode")
+        if my_power < random.randrange(45, 55):
+            return False
+    
+    return True
 
 
 class PokerSocket(object):
@@ -401,10 +408,11 @@ class my_battle_poker_bot(PokerBot):
 
     def game_over(self, is_winner, my_win_chips, data):
         # Round end
+        print ("...round over: ", is_winner, my_win_chips, "spend: ", self.spend_money, "counter: ", self.bet_count, "/", self.raise_count)
+        # Reset counters
         self.bet_count = 0
         self.raise_count = 0
         self.spend_money = 0
-        print ("...round over: ", is_winner, my_win_chips, "spend: ", self.spend_money, "counter: ", self.bet_count, "/", self.raise_count)
     
     def do_preflop(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):      
         #
@@ -419,6 +427,7 @@ class my_battle_poker_bot(PokerBot):
     def do_flop(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):
 
         my_power = get_my_power(holes, boards, my_chips, my_call_bet, number_players)
+        
         if may_i_raise(my_power, my_raise_bet, my_chips):
             self.raise_count += 1
             self.spend_money += my_raise_bet
@@ -447,6 +456,15 @@ class my_battle_poker_bot(PokerBot):
     def do_river(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):
         my_power = get_my_power(holes, boards, my_chips, my_call_bet, number_players)
         
+        # Normalize power to avoid the strengh of board is too strong, so everybody has good rating.
+        emptyhole = []
+        boardpow = my_evaluator.evaluate(emptyhole, boards)
+        # 6184 = 1-pair: 2s + 2h
+        boardpow_thold = 6200
+        if boardpow <= boardpow_thold:
+            print (" * CAUTION: ...board card itself is powerful: ", boardpow, "<=", boardpow_thold)
+            my_power = my_power * ((boardpow_thold - boardpow) / float(boardpow_thold))
+        
         if may_i_raise(my_power, my_raise_bet, my_chips):
             self.raise_count += 1
             self.spend_money += my_raise_bet
@@ -465,9 +483,9 @@ class my_battle_poker_bot(PokerBot):
         elif roundnum == 'Flop':
             return self.do_flop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet)
         elif roundnum == 'Turn':
-            return self.do_flop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet)
+            return self.do_turn(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet)
         elif roundnum == 'River':
-            return self.do_flop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet) 
+            return self.do_river(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet) 
         else:
             print ("BUG: Do not expect ", roundnum)
             sys.exit()
@@ -496,3 +514,5 @@ if __name__ == '__main__':
 
         myPokerSocket = PokerSocket(my_name, connect_url, myPokerBot)
         myPokerSocket.doListen()
+
+#;
