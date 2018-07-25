@@ -280,9 +280,12 @@ def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
         print ("...Gambling mode: active")
         return True
     
-    if my_power <= random.randrange(35, 40):
+    if my_power <= random.randrange(20, 25):
         # power is too low. Give up.
-        if bet_percent <= 10:
+        return False
+    elif my_power <= random.randrange(35, 40):
+        # Not so week, but not strong, either.
+        if bet_percent <= 15:
             return True
         else:
             return False
