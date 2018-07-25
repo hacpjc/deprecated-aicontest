@@ -245,16 +245,16 @@ def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
 def may_i_call_at_turn(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
     
-    if my_spend <= 200:
+    if my_call_bet <= 200:
         return True
     
     if my_chips <= 200:
         return True
     
-    if my_spend >= (my_chips / 3):
-        # Gambling mode
-        print ("...Gambling mode: active")
-        return True
+#    if my_spend >= ((my_chips * 3) / 4):
+#        # Gambling mode
+#        print ("...Gambling mode: active")
+#        return True
     
     if my_power < random.randrange(40, 55):
         # power is too low. Give up.
