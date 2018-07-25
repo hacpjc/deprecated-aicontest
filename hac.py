@@ -172,13 +172,16 @@ def get_random_hit(hitrate):
  
 # OK;
 def may_i_raise(my_power, my_raise_bet, my_chips):
-    rate = get_bet_percent(my_raise_bet, my_chips)       
+    rate = get_bet_percent(my_raise_bet, my_chips)   
     
     if my_power >= 90:
         return True
     
     if my_power <= 75:
         return False
+
+    if (my_raise_bet <= my_chips / 4):
+        return True
     
     if rate <= 20:    
         return get_random_hit(my_power)
@@ -329,7 +332,7 @@ class PokerSocket(object):
 
         self.number_players = len(players)
         self.my_call_bet = data['self']['minBet']
-        self.my_raise_bet = roundup(chips / 2, self.my_call_bet)
+        self.my_raise_bet = roundup(chips / 3, self.my_call_bet)
         
         self.hole = []
         for card in (hands):
