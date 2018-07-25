@@ -145,7 +145,7 @@ def get_my_power(holes, boards, my_chips, my_call_bet, playernum):
     mypow = strengh
     
     # Guess win rate by random pickup
-    win_rate = calc_mont_win_rate(holes, boards, 40000)
+    win_rate = calc_mont_win_rate(holes, boards, 50000)
        
     print ("...pow / win-rate: ", mypow, win_rate, "user: ", playernum)
     mypow = (mypow + (win_rate)) / float(2)
@@ -171,25 +171,22 @@ def get_random_hit(hitrate):
     
  
 # OK;
-def may_i_raise(my_power, my_raise_bet, my_chips):
+def may_i_raise(my_power, my_raise_bet, my_chips):   
     rate = get_bet_percent(my_raise_bet, my_chips)   
     
-    if my_power >= 90:
+    if my_power >= 80:
         return True
     
-    if my_power <= 75:
+    if my_power <= 70:
         return False
 
-    if (my_chips >= 3000):
-        return True
-    
-    if rate <= 20:    
-        return get_random_hit(my_power)
-    else:
-        return get_random_hit(100 - rate)
+    return get_random_hit(100 - rate)
 
 # OK; For preflop to decide to gamble or not.
 def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
+    
+    if my_spend <= 200:
+        return True
     
     if my_spend > 0: 
         if my_spend >= (my_chips / 2) and my_chips < 500:
@@ -218,6 +215,8 @@ def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
 # OK
 def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
+    if my_spend <= 200:
+        return True
     
     if my_chips <= 200:
         return True
@@ -246,6 +245,9 @@ def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
 def may_i_call_at_turn(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
     
+    if my_spend <= 200:
+        return True
+    
     if my_chips <= 200:
         return True
     
@@ -269,7 +271,7 @@ def may_i_call_at_turn(my_power, my_call_bet, my_chips, my_spend):
 # OK;
 def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
-    
+
     if my_chips <= 200:
         return True
     
@@ -278,9 +280,12 @@ def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
         print ("...Gambling mode: active")
         return True
     
-    if my_power <= random.randrange(35, 45):
+    if my_power <= random.randrange(35, 40):
         # power is too low. Give up.
-        return False
+        if bet_percent <= 10:
+            return True
+        else:
+            return False
     elif my_power >= random.randrange(85, 90):
         # power is high
         return True
@@ -301,7 +306,7 @@ class PokerSocket(object):
     table_bet = 0
     my_name = None
     raise_count = 0
-    bet_count = 0
+    my_step = 0
     total_bet = 0
     player_table = []
     
@@ -313,20 +318,20 @@ class PokerSocket(object):
         self.connect_url = connect_url
 
     def next_round_action(self):
-        self.bet_count = 0
+        self.my_step = 0
         self.raise_count = 0
         self.total_bet = 0
         self.board = []
         self.hole = []
 
-    def getAction(self, data):
+    def get_action(self, data):
         roundnum = data['game']['roundName']
         players = data['game']['players']
         chips = data['self']['chips']
         hands = data['self']['cards']
 
         self.raise_count = data['game']['raiseCount']
-        self.bet_count = data['game']['betCount']
+        self.my_step = data['game']['betCount']
         self.my_chips = chips
         self.my_name = data['self']['playerName']
 
@@ -348,18 +353,54 @@ class PokerSocket(object):
 
         action, amount = self.pokerbot.declareAction(
                 self.hole, self.board, roundnum, self.my_raise_bet, self.my_call_bet, self.table_bet, 
-                self.number_players, self.raise_count, self.bet_count, self.my_chips, self.total_bet)
+                self.number_players, self.raise_count, self.my_step, self.my_chips, self.total_bet)
         
         self.total_bet += amount
         
-        if action == 'raise':
+        if action == 'bet':
             self.raise_count += 1
         elif action == 'call':
-            self.bet_count += 1
+            self.my_step += 1
         
         return action, amount
 
-    def takeAction(self, event_name, data):
+    def get_bet(self, data):
+        roundnum = data['game']['roundName']
+        players = data['game']['players']
+        chips = data['self']['chips']
+        hands = data['self']['cards']
+        
+        self.raise_count = data['game']['raiseCount']
+        self.my_step = data['game']['betCount']
+        self.my_chips = chips
+        self.my_name = data['self']['playerName'] 
+
+        self.number_players = len(players)
+        self.my_call_bet = data['self']['minBet']
+        self.my_raise_bet = roundup(chips / 3, self.my_call_bet)
+        self.hole = []
+        for card in (hands):
+            card = convert_card_str(card)
+            card = Card.new(card)
+            self.hole.append(card)
+        
+        print ("...roundnum: ", format(roundnum), " -> force bet")
+        print ('...my_call_bet:', format(self.my_call_bet), "my_raise_bet", format(self.my_raise_bet), "my_chips", format(self.my_chips), "table bet", format(self.table_bet))
+        
+        Card.print_pretty_cards (self.hole)
+        Card.print_pretty_cards (self.board)
+ 
+        if roundnum == 'Deal' and self.my_step == 0:
+            print ("...Force to bet!")
+            action = 'call'
+            amount = self.my_call_bet
+            self.my_step += 1
+            self.total_bet += amount
+            return action, amount
+        else:
+            return self.get_action(data)
+
+    def handle_action(self, event_name, data):
         print ("...dispatch event: ", event_name)
         
         if event_name == '__new_round':
@@ -376,17 +417,16 @@ class PokerSocket(object):
                 card = convert_card_str(card)
                 card = Card.new(card)
                 self.board.append(card)
-            print ('...number_players: ', format(self.number_players))
+                            
             if len(self.board) > 0:
                 Card.print_pretty_cards(self.board)
             else:
                 print ("...board empty (preflop)")
                 
-            print ('...total_bet: ', format(self.table_bet))
+            print ('...table_bet: ', format(self.table_bet), "player num: ", self.number_players)
         elif event_name == "__bet":
-            action, amount = self.getAction(data)
-            print ("...action: ", format(action))
-            print ("...action amount: ", format(amount))
+            action, amount = self.get_bet(data)
+            print ("...bet action: ", format(action), "amount: ", format(amount))
             
             output_msg = json.dumps({
                 "eventName": "__action",
@@ -397,7 +437,7 @@ class PokerSocket(object):
                 }})
             self.ws.send(output_msg)
         elif event_name == "__action":
-            action, amount = self.getAction(data)
+            action, amount = self.get_action(data)
             print ("...action: ", format(action), "amount: ", format(amount))
 
             output_msg = json.dumps({
@@ -453,7 +493,7 @@ class PokerSocket(object):
                 event_name = msg["eventName"]
                 data = msg["data"]
 #                print ("->", event_name, ":", json.dumps(data))
-                self.takeAction(event_name, data)
+                self.handle_action(event_name, data)
         except Exception, e:
             print (" * EXCEPTION: ", e.message)
             traceback.print_exc(file=sys.stdout)
@@ -461,7 +501,7 @@ class PokerSocket(object):
             
 
 class PokerBot(object):
-    def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,bet_count,my_Chips,total_bet):
+    def declareAction(self,hole, board, round, my_Raise_Bet, my_Call_Bet,Table_Bet,number_players,raise_count,my_step,my_Chips,total_bet):
         err_msg = self.__build_err_msg("declare_action")
         raise NotImplementedError(err_msg)
     def game_over(self,isWin,winChips,data):
@@ -470,7 +510,7 @@ class PokerBot(object):
 
 class my_battle_poker_bot(PokerBot):   
     raise_count = 0
-    bet_count = 0
+    my_step = 0
     spend_money = 0
     
     def __init__(self):
@@ -478,56 +518,63 @@ class my_battle_poker_bot(PokerBot):
 
     def game_over(self, is_winner, my_win_chips, data):
         # Round end
-        print ("...round over: ", is_winner, my_win_chips, "spend: ", self.spend_money, "counter: ", self.bet_count, "/", self.raise_count)
+        print ("...round over: ", is_winner, my_win_chips, "spend: ", self.spend_money, "counter: ", self.my_step, "/", self.raise_count)
         # Reset counters
-        self.bet_count = 0
+        self.my_step = 0
         self.raise_count = 0
         self.spend_money = 0
     
-    def do_preflop(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):      
+    def do_preflop(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet):      
         #
         # Don't bet too much at preflop. always: call or fold.
         #
+        print ("...spend money: ", self.spend_money)
+        
         if may_i_call_at_preflop(holes, my_chips, my_call_bet, self.spend_money):
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_call_bet
             return 'call', my_call_bet
         else:
             return 'fold', 0
 
-    def do_flop(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):
-
+    def do_flop(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet):
         my_power = get_my_power(holes, boards, my_chips, my_call_bet, number_players)
+        
+        print ("...spend money: ", self.spend_money)
         
         if may_i_raise(my_power, my_raise_bet, my_chips):
             self.raise_count += 1
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_raise_bet
-            return 'raise', my_raise_bet
+            return 'bet', my_raise_bet
         elif may_i_call_at_flop(my_power, my_call_bet, my_chips, self.spend_money):
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_call_bet
             return 'call', my_call_bet
         else:
             return 'fold', 0
 
-    def do_turn(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):
+    def do_turn(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet):
         my_power = get_my_power(holes, boards, my_chips, my_call_bet, number_players)
+        
+        print ("...spend money: ", self.spend_money)
         
         if may_i_raise(my_power, my_raise_bet, my_chips):
             self.raise_count += 1
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_raise_bet
-            return 'raise', my_raise_bet
+            return 'bet', my_raise_bet
         elif may_i_call_at_turn(my_power, my_call_bet, my_chips, self.spend_money):
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_call_bet
             return 'call', my_call_bet
         else:
             return 'fold', 0
 
-    def do_river(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):
+    def do_river(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet):
         my_power = get_my_power(holes, boards, my_chips, my_call_bet, number_players)
+        
+        print ("...spend money: ", self.spend_money)
         
         # Normalize power to avoid the strengh of board is too strong, so everybody has good rating.
         emptyhole = []
@@ -542,26 +589,26 @@ class my_battle_poker_bot(PokerBot):
         
         if may_i_raise(my_power, my_raise_bet, my_chips):
             self.raise_count += 1
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_raise_bet
-            return 'raise', my_raise_bet
+            return 'bet', my_raise_bet
         elif may_i_call_at_river(my_power, my_call_bet, my_chips, self.spend_money):
-            self.bet_count += 1
+            self.my_step += 1
             self.spend_money += my_call_bet
             return 'call', my_call_bet
         else:
             return 'fold', 0
 
-    def declareAction(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet):       
+    def declareAction(self, holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet):       
         # preflop -> Flop -> Turn -> River
         if roundnum == 'Deal':
-            return self.do_preflop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet)
+            return self.do_preflop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet)
         elif roundnum == 'Flop':
-            return self.do_flop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet)
+            return self.do_flop(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet)
         elif roundnum == 'Turn':
-            return self.do_turn(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet)
+            return self.do_turn(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet)
         elif roundnum == 'River':
-            return self.do_river(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, bet_count, my_chips, total_bet) 
+            return self.do_river(holes, boards, roundnum, my_raise_bet, my_call_bet, table_bet, number_players, raise_count, my_step, my_chips, total_bet) 
         else:
             print ("BUG: Do not expect ", roundnum)
             sys.exit()
