@@ -180,7 +180,7 @@ def may_i_raise(my_power, my_raise_bet, my_chips):
     if my_power <= 75:
         return False
 
-    if (my_raise_bet <= my_chips / 4):
+    if (my_chips >= 3000):
         return True
     
     if rate <= 20:    
