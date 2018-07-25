@@ -145,7 +145,7 @@ def get_my_power(holes, boards, my_chips, my_call_bet, playernum):
     mypow = strengh
     
     # Guess win rate by random pickup
-    win_rate = calc_mont_win_rate(holes, boards, 65536)
+    win_rate = calc_mont_win_rate(holes, boards, 40000)
        
     print ("...pow / win-rate: ", mypow, win_rate, "user: ", playernum)
     mypow = (mypow + (win_rate)) / float(2)
