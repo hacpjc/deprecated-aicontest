@@ -185,7 +185,7 @@ def may_i_raise(my_power, my_raise_bet, my_chips):
 # OK; For preflop to decide to gamble or not.
 def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
     
-    if my_spend <= 200:
+    if my_call_bet <= 200:
         return True
     
     if my_spend > 0: 
@@ -215,13 +215,13 @@ def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
 # OK
 def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
-    if my_spend <= 200:
+    if my_call_bet <= 200:
         return True
     
     if my_chips <= 200:
         return True
     
-    if my_spend >= (my_chips / 4):
+    if my_spend >= ((my_chips * 3)/ 4):
         # Gambling mode
         print ("...Gambling mode: active")
         return True
