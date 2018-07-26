@@ -153,8 +153,9 @@ def get_my_power(holes, boards, my_chips, my_call_bet, playernum):
     
     # Decrease power if chips is in danger
     rate = get_bet_percent(my_call_bet, my_chips)
-    rate = 100 - rate    
-    if strengh <= 80:
+    rate = 100 - rate
+    
+    if mypow <= 80:
         mypow = mypow * (rate / 100)
     
     print ("...my final power is: ", mypow)
@@ -168,44 +169,47 @@ def get_random_hit(hitrate):
         return True
     else:
         return False
-    
  
 # OK;
-def may_i_raise(my_power, my_raise_bet, my_chips):   
-    rate = get_bet_percent(my_raise_bet, my_chips)   
-    
-    if my_power >= 80:
+def may_i_raise(my_power, my_raise_bet, my_chips):
+    if my_power >= random.randrange(81, 85):
         return True
     
-    if my_power <= 70:
+    if my_power <= 75:
         return False
-
+    
+    rate = get_bet_percent(my_raise_bet, my_chips)   
     return get_random_hit(100 - rate)
 
 # OK; For preflop to decide to gamble or not.
 def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
-    
-    if my_call_bet <= my_chips / 10:
+        
+    if my_call_bet <= my_chips / 20:
+        print ("...Cheap preflop. Go Go Go.")
         return True
     
-    if my_spend > 0: 
-        if my_spend >= (my_chips / 2) and my_chips < 500:
-            return True
-    else:
-        # spend money = 0
-        if my_call_bet >= my_chips and my_chips < 800:
-            return True
+    if my_chips <= 500 and my_call_bet <= (my_chips / 2):
+        # Poor mode
+        print ("...Poor-guy gambling mode: active")
+        return True
 
     #
     # If I have a lot of chips, raise the gamble rate!
     #
-    if my_call_bet >= my_chips:
-        return False
+    if my_call_bet > (my_spend * 4):
+        print ("...Sombody gamble at preflop. Defend?")
+        if my_call_bet > my_chips / 10:    
+            return False
 
     basic_rate = get_bet_percent(my_call_bet, my_chips)
     basic_rate = 100 - basic_rate
     
     my_hole_power = get_hole_power(my_hole)
+    
+    if my_hole_power == 100:
+        # Attack! Attack! Kill you damn buster.
+        print ("...Danger gambling mode: active")
+        return True
     
     gamble_rate = ((basic_rate * 4) + my_hole_power) / 5
     
@@ -215,7 +219,8 @@ def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
 # OK
 def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
-    if my_call_bet <= 200:
+    
+    if my_call_bet <= (my_chips / 30):
         return True
     
     if my_chips <= 200:
@@ -236,16 +241,16 @@ def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
         # power is high
         return True
     
-    if bet_percent <= 20:
+    if bet_percent <= 15:
         return True
     else:
-        return get_random_hit(120 - bet_percent)
+        return get_random_hit(115 - bet_percent)
 
 # OK;
 def may_i_call_at_turn(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
     
-    if my_call_bet <= 200:
+    if my_call_bet <= (my_chips / 30):
         return True
     
     if my_chips <= 200:
@@ -259,44 +264,38 @@ def may_i_call_at_turn(my_power, my_call_bet, my_chips, my_spend):
     if my_power < random.randrange(40, 55):
         # power is too low. Give up.
         return False
-    elif my_power >= random.randrange(80, 85):
+    elif my_power >= 80:
         # power is high
         return True
     
-    if bet_percent <= 25:
+    #
+    # Normal power...
+    #
+    if bet_percent <= 20:
         return True
     else:
-        return get_random_hit(125 - bet_percent)
+        return get_random_hit(120 - bet_percent)
 
 # OK;
 def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
 
-    if my_chips <= 200:
+    if my_call_bet <= (my_chips / 30):
         return True
     
-    if my_spend >= (my_chips / 2):
-        # Gambling mode
-        print ("...Gambling mode: active")
-        return True
-    
-    if my_power <= random.randrange(20, 25):
+    if my_power <= random.randrange(20, 35):
         # power is too low. Give up.
         return False
-    elif my_power <= random.randrange(35, 40):
-        # Not so week, but not strong, either.
-        if bet_percent <= 15:
-            return True
-        else:
-            return False
-    elif my_power >= random.randrange(85, 90):
+    elif my_power >= 80:
         # power is high
         return True
+    else:
+        print ("...Fate mode: active")
 
-    if bet_percent <= 30 or my_spend >= (my_chips / 4):
+    if bet_percent <= 25:
         return True
     else:
-        return get_random_hit(130 - bet_percent)
+        return get_random_hit(1250 - bet_percent)
 
 class PokerSocket(object):
     ws = ""
@@ -362,6 +361,7 @@ class PokerSocket(object):
         
         if action == 'bet':
             self.raise_count += 1
+            self.my_step += 1
         elif action == 'call':
             self.my_step += 1
         
