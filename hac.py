@@ -185,7 +185,7 @@ def may_i_raise(my_power, my_raise_bet, my_chips):
 # OK; For preflop to decide to gamble or not.
 def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
     
-    if my_call_bet <= 200:
+    if my_call_bet <= my_chips / 10:
         return True
     
     if my_spend > 0: 
@@ -452,7 +452,7 @@ class PokerSocket(object):
                 }})
             self.ws.send(output_msg)
         elif event_name == "__game_over":
-            print("...table end w/ my chips: ", self.my_chips)
+            print("...table end w/ my chips: ", self.my_chips, "my_name: ", self.my_name, format(data))
             sys.exit()
         elif event_name == "__round_end":           
             players = data['players']
