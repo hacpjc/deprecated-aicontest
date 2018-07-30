@@ -158,7 +158,7 @@ def get_my_power(holes, boards, my_chips, my_call_bet, playernum):
     rate = get_bet_percent(my_call_bet, my_chips)
     rate = 100 - rate
     
-    if mypow < 80:
+    if mypow < 75:
         mypow = mypow * (rate / 100)
     
     print ("...my final power is: ", mypow)
@@ -178,7 +178,7 @@ def may_i_allin(my_power, my_raise_bet, my_chips):
     if my_chips < 1000 and my_power >= 75:
         return True
     
-    if my_power >= 90:
+    if my_power >= 85:
         return True
     
     return False
@@ -623,7 +623,7 @@ class my_battle_poker_bot(PokerBot):
             self.my_step += 1
             self.spend_money += my_call_bet + add_money
             
-            return 'bet', add_money
+            return 'bet', my_call_bet + add_money
             
         elif may_i_call_at_flop(my_power, my_call_bet, my_chips, self.spend_money):
             self.my_step += 1
@@ -694,7 +694,7 @@ class my_battle_poker_bot(PokerBot):
             self.my_step += 1
             self.spend_money += my_call_bet + add_money
             
-            return 'bet', add_money
+            return 'bet', my_call_bet + add_money
         elif may_i_call_at_river(my_power, my_call_bet, my_chips, self.spend_money):
             self.my_step += 1
             self.spend_money += my_call_bet
