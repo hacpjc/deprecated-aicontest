@@ -4,6 +4,7 @@
 
 from deuces import Card
 import sys, traceback
+import random
 
 #
 # suit num: Spade=1, Heart=2, Diamond=4, Club=8
@@ -118,6 +119,8 @@ class htapi():
             
         return output
 
+#;
+
 
 class htplayer(htapi):
     ht = htapi()
@@ -128,12 +131,13 @@ class htplayer(htapi):
         # Clean data
         self.point = 0
         self.used_card = []
-
+        self.unused_card = []
     
     def __init__(self, name, ident):
         self.name = name
         self.ident = ident
         self.used_card = []
+        self.unused_card = []
         self.point = 0
         self.point_total = 0
         self.point_history = []
@@ -160,9 +164,13 @@ class htplayer(htapi):
                 'name': str(self.name), 'ident': str(self.ident), 
                 'point': self.point, 'point_total': self.point_total, 
                 'point_history': self.point_history,
-                'used_card': self.used_card
+                'used_card': self.used_card,
+                'unused_card': self.unused_card
                 }
         return output
+
+    def deal(self, card_list):
+        self.unused_card = card_list
     
     def shoot(self, card):
         self.ht.msg(self.name, " -> ", self.ht.get_card_pretty(card), ", Point: ", str(self.get_point()))
@@ -218,14 +226,33 @@ class htgame(htplayer, htapi):
         self.ht.errmsg("Cannot find player: ", str(ident))
         return None
     
-    def do_shoot(self, ident, card):
+    def shoot(self, ident, card):
         p = self.find_player(ident)
         if p == None:
             return False
         
         p.shoot(card)
-                
-        self.ht.msg("Add card: ", self.ht.get_card_pretty(card))
+
         self.used_card.append(card)
+
+    # Automatically deal cards to all players
+    def auto_deal(self):
+        unused_card = self.ht.get_all_card()
+        random.shuffle(unused_card)
+
+        if len(self.players) != 4:
+            self.ht.errmsg("Unexpected player num: ", len(self.players))
+
+        for p in self.players:
+            picked = []
+            for i in range(13):
+                picked.append(unused_card.pop())
+            p.deal(picked)
+
+        if len(unused_card) == 0:
+            return True
+        else:
+            self.ht.errmsg("Can't shuffle all cards")
+            return False
 
 #;

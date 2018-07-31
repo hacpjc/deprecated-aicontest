@@ -32,28 +32,25 @@ def test_htplayer():
 
 def test_htgame():
     htl = []
-    
-    htp = htplayer("hac", "54088")
-    htl.append(htp)
-    
-    htp = htplayer("xxx", "11111")
-    htl.append(htp)
+    htl.append(htplayer("hac", "54088"))
+    htl.append(htplayer("aaa", "11111"))
+    htl.append(htplayer("bbb", "22222"))
+    htl.append(htplayer("ccc", "33333"))
     
     game = htgame(htl)
 
+    game.auto_deal()
+
     print ("")    
     print (format(game.get_stat_dict()))
-    
-    game.do_shoot('54088', Card.new('Qs'))
-    
-    print ("")
-    print (format(game.get_stat_dict()))
-    
-    game.do_shoot('11111', Card.new('As'))
+    game.shoot('54088', Card.new('Qs'))
     
     print ("")
     print (format(game.get_stat_dict()))
+    game.shoot('11111', Card.new('As'))
     
+    print ("")
+    print (format(game.get_stat_dict()))
     game.nextround()
 
 
