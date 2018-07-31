@@ -177,6 +177,9 @@ def get_random_hit(hitrate):
 def may_i_allin(my_power, my_raise_bet, my_chips):
     if my_chips < 1000 and my_power >= 75:
         return True
+
+    if my_chips >= 2500:
+        return False
     
     if my_power >= 85:
         return True
@@ -337,6 +340,19 @@ def may_i_bet(my_power, my_call_bet, my_chips, my_spend):
         return True
     
     return False
+
+# OK;
+def may_i_bet_at_river(my_power, my_call_bet, my_chips, my_spend):
+    bet_percent = get_bet_percent(my_call_bet, my_chips)
+    
+    if my_power < random.randrange(65, 75):
+        return False
+        
+    if bet_percent < 10:
+        print ("...Bet Bet Bet ... man")
+        return True
+    
+    return False    
 
 class PokerSocket(object):
     ws = ""
@@ -688,7 +704,7 @@ class my_battle_poker_bot(PokerBot):
             self.my_step += 1
             self.spend_money += my_raise_bet
             return 'raise', my_raise_bet
-        elif may_i_bet(my_power, my_call_bet, my_chips, self.spend_money):
+        elif may_i_bet_at_river(my_power, my_call_bet, my_chips, self.spend_money):
             add_money = roundup(my_raise_bet / 10, 10)
             
             self.my_step += 1
