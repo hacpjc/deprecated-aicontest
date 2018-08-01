@@ -199,6 +199,21 @@ def may_i_raise(my_power, my_raise_bet, my_chips):
     
     rate = get_bet_percent(my_raise_bet, my_chips)   
     return get_random_hit(100 - rate)
+ 
+# OK;
+def may_i_raise_at_river(my_power, my_raise_bet, my_chips):
+    if my_raise_bet == 0:
+        return False
+    
+    if my_power >= random.randrange(85, 90):
+        return True
+    
+    if my_power <= 75:
+        return False
+    
+    rate = get_bet_percent(my_raise_bet, my_chips)   
+    return get_random_hit(100 - rate)
+
 
 # OK; For preflop to decide to gamble or not.
 def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
@@ -208,12 +223,12 @@ def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
         print ("...Cheap preflop. Go Go Go.")
         return True
     
-    if my_chips <= 500 and bet_percent < 50:
+    if my_chips <= 640 and bet_percent <= 50:
         # Poor mode
         print ("...Poor-guy gambling mode: active")
         return True
 
-    if my_spend == 0 and my_call_bet > 640 and my_chips > 800:
+    if my_spend == 0 and my_call_bet > 640 and my_chips > 1000:
         print ("...Anti-raise bot. Give up this round.")
         return False
 
@@ -231,7 +246,7 @@ def may_i_call_at_preflop(my_hole, my_chips, my_call_bet, my_spend):
     # Evaulate my hole cards
     my_hole_power = get_hole_power(my_hole)
     
-    if my_hole_power == 100:
+    if my_hole_power == 100 and my_chips <= 1000:
         # Attack! Attack! Kill you damn buster.
         print ("...Danger gambling mode: active")
         return True
@@ -267,10 +282,10 @@ def may_i_call_at_flop(my_power, my_call_bet, my_chips, my_spend):
         if bet_percent >= 25:
             return False
     
-    if bet_percent <= 20:
+    if bet_percent <= 5:
         return True
     else:
-        return get_random_hit(120 - bet_percent)
+        return get_random_hit(105 - bet_percent)
 
 # OK;
 def may_i_call_at_turn(my_power, my_call_bet, my_chips, my_spend):
@@ -699,7 +714,7 @@ class my_battle_poker_bot(PokerBot):
             self.my_step += 1
             self.spend_money += my_chips
             return 'allin', 0
-        elif may_i_raise(my_power, my_raise_bet, my_chips):
+        elif may_i_raise_at_river(my_power, my_raise_bet, my_chips):
             self.raise_count += 1
             self.my_step += 1
             self.spend_money += my_raise_bet
