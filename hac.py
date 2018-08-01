@@ -332,7 +332,7 @@ def may_i_call_at_river(my_power, my_call_bet, my_chips, my_spend):
 def may_i_bet(my_power, my_call_bet, my_chips, my_spend):
     bet_percent = get_bet_percent(my_call_bet, my_chips)
     
-    if my_power < random.randrange(70, 75):
+    if my_power < random.randrange(67, 75):
         return False
         
     if bet_percent < 20:
@@ -705,7 +705,7 @@ class my_battle_poker_bot(PokerBot):
             self.spend_money += my_raise_bet
             return 'raise', my_raise_bet
         elif may_i_bet_at_river(my_power, my_call_bet, my_chips, self.spend_money):
-            add_money = roundup(my_raise_bet / 10, 10)
+            add_money = roundup(my_raise_bet / 5, 10)
             
             self.my_step += 1
             self.spend_money += my_call_bet + add_money
