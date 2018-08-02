@@ -178,7 +178,7 @@ def may_i_allin(my_power, my_raise_bet, my_chips):
     if my_chips < 1000 and my_power >= 75:
         return True
 
-    if my_chips >= 2500:
+    if my_chips >= 3000:
         return False
     
     if my_power >= 85:
@@ -752,7 +752,6 @@ if __name__ == '__main__':
             name = sys.argv[1] 
         else: 
             print (sys.argv[0], " <name> <url>") 
-            print (sys.argv[0], " <name> ws://poker-dev.wrs.club:3001/ ws://poker-training.vtr.trendnet.org:3001 ws://poker-battle.vtr.trendnet.org:3001") 
             sys.exit() 
      
         if len(sys.argv) == 3: 
