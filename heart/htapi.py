@@ -266,7 +266,7 @@ class htgame(htplayer, htapi):
             p.nextgame()
 
         self.used_card = []
-        self.roundnum = 0
+        self.roundnum = 1
         self.is_hb = False
         
         self.gamenum += 1
@@ -282,7 +282,7 @@ class htgame(htplayer, htapi):
         self.board_card = []
 
         self.gamenum = 0
-        self.roundnum = 0
+        self.roundnum = 1
         self.is_hb = False # Heart break in this round
 
     def get_stat_dict(self):
@@ -347,6 +347,22 @@ class htgame(htplayer, htapi):
             self.ht.errmsg("Can't shuffle all cards")
             return False
 
+    def __calc_card_score(self, card_list):
+        score = 0
+        
+        for c in card_list:
+            suit = self.ht.get_card_suit(c)
+            rank = self.ht.get_card_rank(c)
+            if suit == self.ht.str2suit('Heart'):
+                score += 1
+            
+            if suit == self.ht.str2suit('Spade'):
+                if rank == self.ht.str2rank('Q'):
+                    score += 13
+        
+        self.ht.msg("Score of this round: " + str(score))
+        return score
+
     def __round_over(self):
         # Calc point!
         board_card = self.board_card
@@ -355,11 +371,39 @@ class htgame(htplayer, htapi):
         lead_card = board_card[0]
         lead_player = self.players[0]
         
+        lead_card_suit = self.ht.get_card_suit(lead_card)
+        lead_card_rank = self.ht.get_card_rank(lead_card)
+        
+        if len(board_card) != 4:
+            self.ht.errmsg("Invalid board card size" + str(len(board_card)))
+        
+        idx = 0
+        rotate = 0
+        next_lead_player = lead_player
         # Decide who can win this round, and the winner will lead next round
+        for p in players:
+            if idx == 0:
+                continue
+            
+            shoot_card = board_card[idx]
+            shoot_card_suit = self.ht.get_card_suit(shoot_card)
+            shoot_card_rank = self.ht.get_card_rank(shoot_card)
+            
+            if shoot_card_suit == lead_card_suit:
+                if shoot_card_rank > lead_card_rank:
+                    next_lead_player = p
+                    rotate = idx
 
+            idx += 1
+            
+        self.ht.msg("Next lead player: " + next_lead_player.get_name())
         
+        if rotate > 0:
+            self.__rotate_player_position(rotate)
         
-        print (self.ht.get_card_pretty_list(board_card))
+        # Calculate the score for next leader
+        score = self.__calc_card_score(board_card)
+        self.ht.msg("Player: " + next_lead_player.get_name() + ", Score: " + str(next_lead_player.inc_point(score)))
 
     def __auto_pick_avail_1st_round(self, suit, player, is_lead):
         output = []
@@ -467,8 +511,8 @@ class htgame(htplayer, htapi):
                 'is_hb': self.is_hb, 'players': self.players}
             
             data['avail_card'] = self.__auto_pick_avail(self.ht.str2suit('Club'), p, is_lead)
-            print (self.ht.get_card_pretty_list(data['avail_card']))
             
+            self.ht.msg("Turn: " + p.get_name())
             output = p.time2shoot(data)
             if output == None:
                 self.ht.errmsg("Invalid card output")
@@ -493,6 +537,7 @@ class htgame(htplayer, htapi):
             
             data['avail_card'] = self.__auto_pick_avail(self.ht.str2suit('Club'), p, is_lead)
             
+            self.ht.msg("Turn: " + p.get_name())
             output = p.time2shoot(data)
             if output == None:
                 self.ht.errmsg("Invalid card output")
@@ -512,7 +557,7 @@ class htgame(htplayer, htapi):
         
     # Automatically play game and ask a player to shoot a card
     def auto_progress(self):
-        self.roundnum += 1
+        print("")
         
         if self.roundnum == 1:
             return self.__auto_progress_round_1()
