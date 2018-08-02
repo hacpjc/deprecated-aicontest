@@ -18,8 +18,11 @@ class htapi():
 
     # Debug tool - Print backtrace
     def bt(self):
-        traceback.print_exc(file=sys.stderr)
-        sys.stderr.flush()
+        try:   
+            raise Exception("Manually raise an exception.")
+        except Exception:
+            traceback.print_exc(file=sys.stderr)
+            sys.stderr.flush()
 
     # Debug tool - Print a list of string(s)
     def msg(self, *argv):
@@ -161,7 +164,7 @@ class htplayer(htapi):
         self.unused_card = []
 
 
-    def __init__(self, name, ident):
+    def __init__(self, name, ident, botai):
         self.name = name
         self.ident = ident
         self.used_card = []
@@ -169,7 +172,7 @@ class htplayer(htapi):
         self.point = 0
         self.point_total = 0
         self.point_history = []
-
+        self.botai = botai()
 
     def get_name(self):
         return self.name
@@ -214,13 +217,15 @@ class htplayer(htapi):
         return output
 
 
-    def get_unused_card(self, card_suit = None):
-        if card_suit != None:
+    def get_unused_card(self, card_suit_list = []):
+        if len(card_suit_list) > 0:
             # Return unused card the same as input suit.
             output = []
-            for c in self.unused_card:
-                if self.ht.get_card_suit(c) == card_suit:
-                    output.append(c)
+            
+            for card_suit in card_suit_list:
+                for c in self.unused_card:
+                    if self.ht.get_card_suit(c) == card_suit:
+                        output.append(c)
             
             return output
         
@@ -228,12 +233,23 @@ class htplayer(htapi):
 
 
     def deal(self, card_list):
-            self.unused_card = card_list
+        self.unused_card = card_list
+            
+    def time2shoot(self, data):
+        data['player_unused_card'] = self.unused_card
 
-
-    def shoot(self, card):
-        self.ht.msg(self.name, " -> ", self.ht.get_card_pretty(card), ", Point: ", str(self.get_point()))
-        self.used_card.append(card)
+        data['player_point'] = self.point
+        data['player_point_history'] = self.point_history
+        
+        pick = self.botai.time2shoot(data)
+        
+        if self.unused_card.count(pick) == 0:
+            self.ht.errmsg("Invalid output card of user" + self.name)
+            
+        self.unused_card.remove(pick)
+        self.used_card.append(pick)
+        
+        return pick
 
 # Heart Game
 # 13 round of each game. 4 ppl.
@@ -243,6 +259,7 @@ class htgame(htplayer, htapi):
     def nextround(self):
         self.roundnum += 1
         self.board_card = []
+        self.is_hb = False
 
     def nextgame(self):
         for p in self.players:
@@ -250,6 +267,8 @@ class htgame(htplayer, htapi):
 
         self.used_card = []
         self.roundnum = 0
+        self.is_hb = False
+        
         self.gamenum += 1
 
     def __init__(self, players):
@@ -264,6 +283,7 @@ class htgame(htplayer, htapi):
 
         self.gamenum = 0
         self.roundnum = 0
+        self.is_hb = False # Heart break in this round
 
     def get_stat_dict(self):
         player_stat_dict = []
@@ -286,6 +306,13 @@ class htgame(htplayer, htapi):
 
         self.ht.errmsg("Cannot find player: ", str(ident))
         return None
+    
+    def __rotate_player_position(self, count):
+        # Rotate the players, so the player to shoot first will also be at head.     
+        for i in range(count):
+            p = self.players.pop(0)
+            self.players.append(p)
+        
 
     def shoot(self, ident, card):
         p = self.__find_player(ident)
@@ -295,6 +322,7 @@ class htgame(htplayer, htapi):
         p.shoot(card)
 
         self.used_card.append(card)
+        self.board_card.append(card)
 
     # Automatically deal cards to all players
     def auto_deal(self):
@@ -319,4 +347,180 @@ class htgame(htplayer, htapi):
             self.ht.errmsg("Can't shuffle all cards")
             return False
 
+    def __round_over(self):
+        # Calc point!
+        board_card = self.board_card
+        players = self.players
+        
+        lead_card = board_card[0]
+        lead_player = self.players[0]
+        
+        # Decide who can win this round, and the winner will lead next round
 
+        
+        
+        print (self.ht.get_card_pretty_list(board_card))
+
+    def __auto_pick_avail_1st_round(self, suit, player, is_lead):
+        output = []
+        
+        if is_lead == True:
+            # Only '2c' is available for 1st shoot.
+            output = [self.ht.str2card('2c', fixfmt = False)]
+            return output
+        else:
+            unused = player.get_unused_card([self.ht.str2suit('Club')])
+            if len(unused) == 0:
+                print ("Payer does not have suit Club")
+                unused = player.get_unused_card(
+                    [self.ht.str2suit('Spade'), self.ht.str2suit('Diamond')]
+                    )
+                if len(unused) == 0:
+                    print ("Player does not have suit Spade/Diamond. Allow heart bread!")
+                    unused = player.get_unused_card([self.ht.str2suit('Heart')])
+                    output = unused
+                    return output
+                else:
+                    output = unused
+                    return output
+            else:
+                output = unused
+                return output
+    
+    def __auto_pick_avail_norm(self, suit, player, is_lead):
+        if (is_lead):
+            if self.is_hb == True:
+                # Can use any card after heart-break
+                unused = player.get_unused_card([
+                    self.ht.str2suit('Spade'), self.ht.str2suit('Heart'), self.ht.str2suit('Diamond'), self.ht.str2suit('Club')
+                    ])
+                return unused
+            else:
+                # Cannot use heart before heart-break
+                unused = player.get_unused_card([
+                    self.ht.str2suit('Spade'), self.ht.str2suit('Diamond'), self.ht.str2suit('Club')
+                    ])
+                if len(unused) == 0:
+                    unused = player.get_unused_card([
+                        self.ht.str2suit('Spade'), self.ht.str2suit('Heart'), self.ht.str2suit('Diamond'), self.ht.str2suit('Club')
+                        ]) 
+                    return unused
+                else:
+                    return unused
+        else:
+            # Follow the suit
+            unused = player.get_unused_card([suit])
+            if len(unused) == 0:
+                # Can use any card, can heart-break
+                unused = player.get_unused_card([
+                    self.ht.str2suit('Spade'), self.ht.str2suit('Heart'), self.ht.str2suit('Diamond'), self.ht.str2suit('Club')
+                    ])
+                return unused
+            else:
+                return unused
+    
+    def __auto_pick_avail(self, suit, player, is_lead):
+        output = []
+        
+        if self.roundnum == 1:
+            output = self.__auto_pick_avail_1st_round(suit, player, is_lead)
+        else:
+            output = self.__auto_pick_avail_norm(suit, player, is_lead)
+        
+        if len(output) == 0:
+            self.ht.errmsg("Do not have available cards to use")
+        
+        return output
+                
+
+    def __auto_progress_round_1(self):
+        self.ht.msg("Round num: " + str(self.roundnum))
+        
+        # Decide who must start! Find the guy who has '2c'
+        club2 = self.ht.str2card('2c', False)
+        
+        # Find the guy having '2c'
+        first_play = None
+        rotate_cnt = 0
+        for p in self.players:
+            p_unused_card_list = p.get_unused_card([self.ht.str2suit('Club')])
+            
+            if p_unused_card_list.count(club2) > 0:
+                first_play = p
+                print ("...Start from player: " + first_play.get_name())
+                break
+            else:
+                rotate_cnt += 1
+            
+        if first_play == None:
+            self.ht.errmsg("Invalid start player")
+        else:
+            self.__rotate_player_position(rotate_cnt)
+            pass
+        
+        # Get user card and add it
+        is_lead = True
+        for p in self.players:        
+            data = {
+                'board_card': self.board_card, 'used_card': self.used_card,
+                'roundnum': self.roundnum,
+                'is_hb': self.is_hb, 'players': self.players}
+            
+            data['avail_card'] = self.__auto_pick_avail(self.ht.str2suit('Club'), p, is_lead)
+            print (self.ht.get_card_pretty_list(data['avail_card']))
+            
+            output = p.time2shoot(data)
+            if output == None:
+                self.ht.errmsg("Invalid card output")
+        
+            self.used_card.append(output)
+            self.board_card.append(output)
+            is_lead = False
+            
+        self.__round_over()
+        self.nextround()
+    
+    def __auto_progress_round(self):
+        self.ht.msg("Round num: " + str(self.roundnum))
+        
+        # Get user card and add it
+        is_lead = True
+        for p in self.players:        
+            data = {
+                'board_card': self.board_card, 'used_card': self.used_card,
+                'roundnum': self.roundnum,
+                'is_hb': self.is_hb, 'players': self.players}
+            
+            data['avail_card'] = self.__auto_pick_avail(self.ht.str2suit('Club'), p, is_lead)
+            
+            output = p.time2shoot(data)
+            if output == None:
+                self.ht.errmsg("Invalid card output")
+        
+            self.used_card.append(output)
+            self.board_card.append(output)
+            is_lead = False
+            
+        self.__round_over()
+        self.nextround()
+    
+    def __auto_progress_round_last(self):
+        self.__auto_progress_round()
+        
+        self.ht.msg("Last round: " + str(self.roundnum))
+        # FIXME
+        
+    # Automatically play game and ask a player to shoot a card
+    def auto_progress(self):
+        self.roundnum += 1
+        
+        if self.roundnum == 1:
+            return self.__auto_progress_round_1()
+        
+        if self.roundnum == 13:
+            return self.__auto_progress_round_last()
+        
+        return self.__auto_progress_round()
+    
+
+# ;

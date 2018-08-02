@@ -9,6 +9,20 @@ import sys
 
 from htapi import htapi, htplayer, htgame
 
+class dummyai(htapi):
+    ht = htapi()
+    
+    def __init__(self):
+        pass
+    
+    def time2shoot(self, data):
+        unused_card = data['avail_card']
+        
+        print ("...avail card: " + self.ht.get_card_pretty_list(unused_card))
+        card = unused_card[0]
+        print ("...shoot card: " + self.ht.get_card_pretty(card))
+        return card
+
 def test_htapi():
     myht = htapi()
 
@@ -32,32 +46,24 @@ def test_htapi():
     
 
 def test_htplayer():
-    htp = htplayer("hac", "54088")
+    htp = htplayer("hac", "54088", dummyai)
 
     print (format(htp.get_stat_dict()))
 
 def test_htgame():
     htl = []
-    htl.append(htplayer("hac", "54088"))
-    htl.append(htplayer("aaa", "11111"))
-    htl.append(htplayer("bbb", "22222"))
-    htl.append(htplayer("ccc", "33333"))
+    htl.append(htplayer("hac", "54088", dummyai))
+    htl.append(htplayer("aaa", "11111", dummyai))
+    htl.append(htplayer("bbb", "22222", dummyai))
+    htl.append(htplayer("ccc", "33333", dummyai))
 
     game = htgame(htl)
 
     game.auto_deal()
 
-    print ("")
-    print (format(game.get_stat_dict()))
-    game.shoot('54088', Card.new('Qs'))
-
-    print ("")
-    print (format(game.get_stat_dict()))
-    game.shoot('11111', Card.new('As'))
-
-    print ("")
-    print (format(game.get_stat_dict()))
-    game.nextround()
+    for roundnum in range(1, 14):
+        game.auto_progress()
+        
 
 def unitest():
     test_htapi()
