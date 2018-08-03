@@ -558,9 +558,11 @@ class htgame(htplayer, htapi):
         return output
                 
 
-    def __auto_progress_round_1(self):
-        self.ht.msg("Round num: " + str(self.roundnum))
-        
+    def __auto_progress_round_1(self):      
+        # Ask players to pass 3 card by correct order
+        # NOTE: Cannot pass '2c'
+        self.auto_pass()
+
         # Decide who must start! Find the guy who has '2c'
         club2 = self.ht.str2card('2c', False)
         
@@ -583,10 +585,8 @@ class htgame(htplayer, htapi):
             self.__rotate_player_position(rotate_cnt)
             pass
         
-        # Ask players to pass 3 card by correct order
-        # NOTE: Cannot pass '2c'
-        self.auto_pass()
-        
+        self.ht.msg("Round num: " + str(self.roundnum))
+                
         # Get user card and add it
         is_lead = True
         lead_suit = self.ht.str2suit('Club')
@@ -696,8 +696,7 @@ class htgame(htplayer, htapi):
             unused_card = p.get_unused_card()
             avail_card = []
             for c in unused_card:
-                if c != self.ht.str2card("2c", fixfmt=False):
-                    avail_card.append(c)
+                avail_card.append(c)
             
             data2p = {}
             data2p['unused_card'] = unused_card[:]
@@ -709,10 +708,8 @@ class htgame(htplayer, htapi):
             if len(exchange) != 3:
                 self.ht.errmsg("Invalid exchange output of user: " + p.get_name())
                 
-            for c in exchange:
-                if c == self.ht.str2card("2c", fixfmt=False):
-                    self.ht.errmsg("Invalid exchange output '2c' of user: " + p.get_name())
-                    
+            # TODO: Also check the chosen card to avoid buggy codes.
+                
             exchange_list.append(exchange)
 
         idx = 0

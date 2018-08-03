@@ -21,6 +21,7 @@ class hacbot(htapi):
         You get the 13 cards.
         """
         my_unused_card = data['player_unused_card']
+        self.ht.msg("My card before exchange: " + self.ht.get_card_pretty_list(my_unused_card))
         
     def __select_card_to_pass(self, my_avail_card):
         """
@@ -40,7 +41,6 @@ class hacbot(htapi):
         pick_suit_num = self.ht.calc_card_num_by_suit(pick_suit, my_avail_card) 
         for suit in suit_list:
             num = self.ht.calc_card_num_by_suit(suit, my_avail_card)
-            print ("Have " + str(num) + " cards")
             
             if pick_suit_num == 0:
                 pick_suit = suit
@@ -57,7 +57,7 @@ class hacbot(htapi):
     
     def time2pass(self, data):
         """
-        Select 3 cards to pass. Cannot select '2c'
+        Select 3 cards to pass.
         """
         my_all_card = data['unused_card']
         my_avail_card = data['avail_card']
@@ -66,7 +66,6 @@ class hacbot(htapi):
         
         for i in range(3):
             c = self.__select_card_to_pass(my_avail_card)
-            print ("Select card: " + self.ht.get_card_pretty(c))
             output.append(c)
     
         return output
@@ -98,10 +97,10 @@ class hacbot(htapi):
         big_card = card_list[0]
         big_card_rank = self.ht.get_card_rank(big_card)
         for c in card_list:
-            if self.ht.get_card_rank(c) < big_card_rank:
+            if self.ht.get_card_rank(c) > big_card_rank:
                 big_card = c
                 big_card_rank = self.ht.get_card_rank(c)
-            
+        
         return big_card
     
     def __leadplay(self, data):
@@ -238,7 +237,7 @@ class randomai(htapi):
     
     def time2pass(self, data):
         """
-        Select 3 cards to pass. Cannot select '2c'
+        Select 3 cards to pass.
         """
         my_all_card = data['unused_card']
         my_avail_card = data['avail_card']
