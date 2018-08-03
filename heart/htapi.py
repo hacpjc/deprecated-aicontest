@@ -137,11 +137,10 @@ class htapi():
         suit = self.get_card_suit(card)
         rank = self.get_card_rank(card)
 
-        if suit == 1 and rank == 10:
+        if card == self.str2card('Qs', fixfmt=False):
             # 'Qs' is 13 point
             output = 13
-
-        if suit == 2:
+        elif suit == 2:
             output = 1
 
         return output
@@ -155,14 +154,18 @@ class htapi():
 class htplayer(htapi):
     ht = htapi()
 
-    def nextgame(self):
-        self.point_history.append(self.point)
+    def nextround(self, data = None):
+        self.botai.nextround(data)
 
+    def nextgame(self, data = None):
+        self.botai.nextgame(data)
+        
+        self.point_history.append(self.point)
+        
         # Clean data
         self.point = 0
         self.used_card = []
         self.unused_card = []
-
 
     def __init__(self, name, ident, botai):
         self.name = name
@@ -173,10 +176,10 @@ class htplayer(htapi):
         self.point_total = 0
         self.point_history = []
         self.botai = botai()
+        self.shoot_moon_cnt = 0
 
     def get_name(self):
         return self.name
-
 
     def get_ident(self):
         return self.ident
@@ -231,10 +234,32 @@ class htplayer(htapi):
         
         return self.unused_card
 
+    def arrange_card(self):
+        self.unused_card = self.ht.card_arrange(self.unused_card)
+
+    def remove_card(self, card_list):
+        if len(card_list) > len(self.unused_card):
+            self.ht.errmsg("Cannot remove card num: " + str(len(card_list)))
+        
+        for c in card_list:
+            self.unused_card.remove(c)
+            
+    def add_card(self, card_list):
+        for c in card_list:
+            self.unused_card.append(c)
+            
+        self.arrange_card()
 
     def deal(self, card_list):
         self.unused_card = card_list
-            
+        
+        data = {}
+        data['player_unused_card'] = card_list
+        self.botai.deal(data)
+    
+    def time2pass(self, data):
+        return self.botai.time2pass(data)
+        
     def time2shoot(self, data):
         data['player_unused_card'] = self.unused_card
 
@@ -251,22 +276,32 @@ class htplayer(htapi):
         
         return pick
 
+    def shoot_moon(self):
+        self.shoot_moon_cnt += 1
+
 # Heart Game
 # 13 round of each game. 4 ppl.
 class htgame(htplayer, htapi):
     ht = htapi()
 
     def nextround(self):
+        data = None
+        # FIXME: Add data for player botai
+        for p in self.players:
+            p.nextround(data)
+        
         self.roundnum += 1
         self.board_card = []
 
     def nextgame(self):
+        data = None # FIXME: Add data for player botai
         for p in self.players:
-            p.nextgame()
+            p.nextgame(data)
 
         self.used_card = []
         self.roundnum = 1
         self.is_hb = False
+        self.is_shoot_moon = False
         
         self.gamenum += 1
 
@@ -280,9 +315,10 @@ class htgame(htplayer, htapi):
         self.used_card = []
         self.board_card = []
 
-        self.gamenum = 0
+        self.gamenum = 1
         self.roundnum = 1
         self.is_hb = False # Heart break in this round
+        self.is_shoot_moon = False
 
     def get_stat_dict(self):
         player_stat_dict = []
@@ -350,14 +386,7 @@ class htgame(htplayer, htapi):
         score = 0
         
         for c in card_list:
-            suit = self.ht.get_card_suit(c)
-            rank = self.ht.get_card_rank(c)
-            if suit == self.ht.str2suit('Heart'):
-                score += 1
-            
-            if suit == self.ht.str2suit('Spade'):
-                if rank == self.ht.str2rank('Q'):
-                    score += 13
+            score += self.ht.card2htpoint(c)
         
         self.ht.msg("Score of this round: " + str(score))
         return score
@@ -405,7 +434,8 @@ class htgame(htplayer, htapi):
         
         # Calculate the score for next leader
         score = self.__calc_card_score(board_card)
-        self.ht.msg("Player: " + next_lead_player.get_name() + ", Score: " + str(next_lead_player.inc_point(score)))
+        self.ht.msg("Player: " + next_lead_player.get_name() + 
+                    ", Score: " + str(next_lead_player.get_point()) +  " -> " + str(next_lead_player.inc_point(score)))
 
     def __auto_pick_avail_1st_round(self, suit, player, is_lead):
         output = []
@@ -457,7 +487,6 @@ class htgame(htplayer, htapi):
             # Follow the suit
             unused = player.get_unused_card([suit])
             if len(unused) == 0:
-                print ("Do not have the same suit" + str(suit))
                 # Can use any card, can heart-break
                 unused = player.get_unused_card([
                     self.ht.str2suit('Spade'), self.ht.str2suit('Heart'), self.ht.str2suit('Diamond'), self.ht.str2suit('Club')
@@ -504,6 +533,10 @@ class htgame(htplayer, htapi):
         else:
             self.__rotate_player_position(rotate_cnt)
             pass
+        
+        # Ask players to pass 3 card by correct order
+        # NOTE: Cannot pass '2c'
+        self.auto_pass()
         
         # Get user card and add it
         is_lead = True
@@ -567,8 +600,32 @@ class htgame(htplayer, htapi):
     def __auto_progress_round_last(self):
         self.__auto_progress_round()
         
-        self.ht.msg("Last round: " + str(self.roundnum))
-        # FIXME
+        """
+        Re-calculate scores if somebody shoot the moon
+        """
+        shoot_moon_player = None
+        for p in self.players:
+            score = p.get_point()
+            if score == 26:
+                shoot_moon_player = p
+            elif score > 26:
+                self.ht.errmsg("Invalid score: " + str(score) + " of player: " + p.get_name())
+        
+        if shoot_moon_player != None:
+            self.msg("Player: " + shoot_moon_player.get_name() + " shoot moon")
+            
+            self.is_shoot_moon = True
+            
+            # Add 26 points at other players, dec 26 points at shoot moon player
+            for p in self.players:
+                if p.get_ident() == shoot_moon_player.get_ident():
+                    p.dec_point(26)
+                else:
+                    p.inc_point(26)
+                    
+            # Inform the user the shoot moon event
+            shoot_moon_player.shoot_moon()
+        
         
     # Automatically play game and ask a player to shoot a card
     def auto_progress(self):
@@ -582,5 +639,62 @@ class htgame(htplayer, htapi):
         
         return self.__auto_progress_round()
     
+    def auto_pass(self):
+        
+        exchange_list = []
+        for p in self.players:
+            # Get user's hand card, but skip '2c'
+            unused_card = p.get_unused_card()
+            avail_card = []
+            for c in unused_card:
+                if c != self.ht.str2card("2c", fixfmt=False):
+                    avail_card.append(c)
+            
+            data = {}
+            data['unused_card'] = unused_card[:]
+            data['avail_card'] = avail_card[:]
+            
+            exchange = []
+            exchange = p.time2pass(data)
+            
+            if len(exchange) != 3:
+                self.ht.errmsg("Invalid exchange output of user: " + p.get_name())
+                
+            for c in exchange:
+                if c == self.ht.str2card("2c", fixfmt=False):
+                    self.ht.errmsg("Invalid exchange output '2c' of user: " + p.get_name())
+                    
+            exchange_list.append(exchange)
 
+        idx = 0
+        for p in self.players:
+            card2remove = exchange_list[idx]
+            card2add = exchange_list[idx - 1]
+            
+            # Remove the player's card
+            print ("Remove: " + self.ht.get_card_pretty_list(card2remove))
+            p.remove_card(card2remove)
+            print ("Add: " + self.ht.get_card_pretty_list(card2add))
+            p.add_card(card2add)
+                      
+            idx += 1
+    
+    def get_game_result(self):
+        output = {}
+        for p in self.players:
+            output[p.get_ident()] = {
+                "name": p.get_name(),
+                "score": p.get_point(), 
+                "total": p.get_point_total()
+                      }
+        return output
+
+    def display_game_result(self):
+        self.ht.msg("Game Result: ")
+        """
+        Score board
+        """
+        output = self.get_game_result()
+        self.ht.msg(format(output))
+    
 # ;
