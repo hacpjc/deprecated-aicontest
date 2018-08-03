@@ -146,11 +146,66 @@ class htapi():
             output = 1
 
         return output
+    
+    def cardl2htpoint(self, card_list):
+        output = 0
+        
+        for c in card_list:
+            output += self.card2htpoint(c)
+            
+        return output
 
     def card_arrange(self, card_list):
         # Sort by card suit and rank
         output = sorted(card_list, key=lambda v: (self.get_card_suit(v) * 20 + self.get_card_rank(v)))
         return output
+    
+    def card_remove(self, list2remove, card):
+        if list2remove.count(card) > 0:
+            list2remove.remove(card)
+            return card
+        
+        return None
+    
+    def card_remove_list(self, list2remove, card_list):
+        output = []
+        
+        for c in card_list:
+            removed_card = self.card_remove(list2remove, c)
+            output.append(removed_card)
+        
+        return output
+    
+    def card_select_by_suit(self, suit, card_list):
+        """
+        Get cards with the same suit
+        """
+        output = []
+        for c in card_list:
+            if self.get_card_suit(c) == suit:
+                output.append(c)
+        return output
+    
+    def card_select_by_card_list(self, card2take_list, card_list):
+        """
+        Pick up card by order
+        Output: A list of cards which are also in input list, too
+        """
+        output = []
+        for c2take in card2take_list:
+            if card_list.count(c2take) > 0:
+                output.append(c2take)
+        
+        return output
+        
+        
+    def calc_card_num_by_suit(self, suit, card_list):
+        """
+        Calculate the number of card in target suit, e.g. if you want to know how many hearts in card list...
+        """
+        same_suit_list = self.card_select_by_suit(suit, card_list)
+        return len(same_suit_list) 
+
 
 # Heart Player 
 class htplayer(htapi):
@@ -321,6 +376,8 @@ class htgame(htplayer, htapi):
         self.roundnum = 1
         self.is_hb = False # Heart break in this round
         self.is_shoot_moon = False
+        
+        random.seed(int(uptime()))
 
     def get_stat_dict(self):
         player_stat_dict = []
@@ -364,7 +421,7 @@ class htgame(htplayer, htapi):
     # Automatically deal cards to all players
     def auto_deal(self):
         unused_card = self.ht.get_all_card()
-        random.seed(int(uptime()))
+        
         random.shuffle(unused_card)
 
         if len(self.players) != 4:
@@ -382,15 +439,6 @@ class htgame(htplayer, htapi):
         else:
             self.ht.errmsg("Can't shuffle all cards")
             return False
-
-    def __calc_card_score(self, card_list):
-        score = 0
-        
-        for c in card_list:
-            score += self.ht.card2htpoint(c)
-        
-        self.ht.msg("Score of this round: " + str(score))
-        return score
 
     def __round_over(self):
         # Calc point!
@@ -434,7 +482,7 @@ class htgame(htplayer, htapi):
             self.__rotate_player_position(rotate)
         
         # Calculate the score for next leader
-        score = self.__calc_card_score(board_card)
+        score = self.ht.cardl2htpoint(board_card)
         self.ht.msg("Player: " + next_lead_player.get_name() + 
                     ", Score: " + str(next_lead_player.get_point()) +  " -> " + str(next_lead_player.inc_point(score)))
 
