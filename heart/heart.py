@@ -25,7 +25,7 @@ class dummyai(htapi):
         """
         my_unused_card = data['player_unused_card']
         
-        self.ht.msg("My card: " + self.ht.get_card_pretty_list(my_unused_card))
+        self.ht.msg("My card before exchange: " + self.ht.get_card_pretty_list(my_unused_card))
     
     def time2pass(self, data):
         """
@@ -101,8 +101,6 @@ def test_htgame():
     htl.append(htplayer("ccc", "33333", dummyai))
 
     game = htgame(htl)
-
-    game.auto_deal()
 
     for gamenum in range(20):
         game.auto_deal()    

@@ -7,6 +7,8 @@ from deuces import Card
 import sys, traceback
 import random
 
+from uptime import uptime
+
 # Heart API 
 #
 # suit num: Spade=1, Heart=2, Diamond=4, Club=8
@@ -154,11 +156,11 @@ class htapi():
 class htplayer(htapi):
     ht = htapi()
 
-    def nextround(self, data = None):
-        self.botai.nextround(data)
+    def nextround(self, data2p = None):
+        self.botai.nextround(data2p)
 
-    def nextgame(self, data = None):
-        self.botai.nextgame(data)
+    def nextgame(self, data2p = None):
+        self.botai.nextgame(data2p)
         
         self.point_history.append(self.point)
         
@@ -253,20 +255,20 @@ class htplayer(htapi):
     def deal(self, card_list):
         self.unused_card = card_list
         
-        data = {}
-        data['player_unused_card'] = card_list
-        self.botai.deal(data)
+        data2p = {}
+        data2p['player_unused_card'] = card_list
+        self.botai.deal(data2p)
     
-    def time2pass(self, data):
-        return self.botai.time2pass(data)
+    def time2pass(self, data2p):
+        return self.botai.time2pass(data2p)
         
-    def time2shoot(self, data):
-        data['player_unused_card'] = self.unused_card
+    def time2shoot(self, data2p):
+        data2p['player_unused_card'] = self.unused_card
 
-        data['player_point'] = self.point
-        data['player_point_history'] = self.point_history
+        data2p['player_point'] = self.point
+        data2p['player_point_history'] = self.point_history
         
-        pick = self.botai.time2shoot(data)
+        pick = self.botai.time2shoot(data2p)
         
         if self.unused_card.count(pick) == 0:
             self.ht.errmsg("Invalid output card of user" + self.name)
@@ -285,18 +287,18 @@ class htgame(htplayer, htapi):
     ht = htapi()
 
     def nextround(self):
-        data = None
-        # FIXME: Add data for player botai
+        data2p = None
+        # FIXME: Add data2p for player botai
         for p in self.players:
-            p.nextround(data)
+            p.nextround(data2p)
         
         self.roundnum += 1
         self.board_card = []
 
     def nextgame(self):
-        data = None # FIXME: Add data for player botai
+        data2p = None # FIXME: Add data2p for player botai
         for p in self.players:
-            p.nextgame(data)
+            p.nextgame(data2p)
 
         self.used_card = []
         self.roundnum = 1
@@ -362,6 +364,7 @@ class htgame(htplayer, htapi):
     # Automatically deal cards to all players
     def auto_deal(self):
         unused_card = self.ht.get_all_card()
+        random.seed(int(uptime()))
         random.shuffle(unused_card)
 
         if len(self.players) != 4:
@@ -373,8 +376,6 @@ class htgame(htplayer, htapi):
                 picked.append(unused_card.pop())
             picked = self.ht.card_arrange(picked)
             p.deal(picked)
-            sys.stdout.write(p.get_name() + ": ")
-            print (self.ht.get_card_pretty_list(p.get_unused_card()))
 
         if len(unused_card) == 0:
             return True
@@ -542,16 +543,16 @@ class htgame(htplayer, htapi):
         is_lead = True
         lead_suit = self.ht.str2suit('Club')
         for p in self.players:        
-            data = {
+            data2p = {
                 'board_card': self.board_card, 'used_card': self.used_card,
                 'unused_card': p.get_unused_card(),
                 'roundnum': self.roundnum,
                 'is_hb': self.is_hb, 'players': self.players}
             
-            data['avail_card'] = self.__auto_pick_avail(lead_suit, p, is_lead)
+            data2p['avail_card'] = self.__auto_pick_avail(lead_suit, p, is_lead)
             
             self.ht.msg("Turn: " + p.get_name())
-            output = p.time2shoot(data)
+            output = p.time2shoot(data2p)
             if output == None:
                 self.ht.errmsg("Invalid card output")
         
@@ -571,16 +572,16 @@ class htgame(htplayer, htapi):
         is_lead = True
         lead_suit = None
         for p in self.players:        
-            data = {
+            data2p = {
                 'board_card': self.board_card, 'used_card': self.used_card,
                 'unused_card': p.get_unused_card(),
                 'roundnum': self.roundnum,
                 'is_hb': self.is_hb, 'players': self.players}
             
-            data['avail_card'] = self.__auto_pick_avail(lead_suit, p, is_lead)
+            data2p['avail_card'] = self.__auto_pick_avail(lead_suit, p, is_lead)
             
             self.ht.msg("Turn: " + p.get_name())
-            output = p.time2shoot(data)
+            output = p.time2shoot(data2p)
             if output == None:
                 self.ht.errmsg("Invalid card output")
             
@@ -650,12 +651,12 @@ class htgame(htplayer, htapi):
                 if c != self.ht.str2card("2c", fixfmt=False):
                     avail_card.append(c)
             
-            data = {}
-            data['unused_card'] = unused_card[:]
-            data['avail_card'] = avail_card[:]
+            data2p = {}
+            data2p['unused_card'] = unused_card[:]
+            data2p['avail_card'] = avail_card[:]
             
             exchange = []
-            exchange = p.time2pass(data)
+            exchange = p.time2pass(data2p)
             
             if len(exchange) != 3:
                 self.ht.errmsg("Invalid exchange output of user: " + p.get_name())
@@ -672,9 +673,9 @@ class htgame(htplayer, htapi):
             card2add = exchange_list[idx - 1]
             
             # Remove the player's card
-            print ("Remove: " + self.ht.get_card_pretty_list(card2remove))
+            self.ht.msg("Player: " + p.get_name() + ", Remove: " + self.ht.get_card_pretty_list(card2remove) + 
+                   ", Add: " + self.ht.get_card_pretty_list(card2add))
             p.remove_card(card2remove)
-            print ("Add: " + self.ht.get_card_pretty_list(card2add))
             p.add_card(card2add)
                       
             idx += 1
