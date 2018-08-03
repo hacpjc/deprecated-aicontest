@@ -259,7 +259,6 @@ class htgame(htplayer, htapi):
     def nextround(self):
         self.roundnum += 1
         self.board_card = []
-        self.is_hb = False
 
     def nextgame(self):
         for p in self.players:
@@ -380,9 +379,12 @@ class htgame(htplayer, htapi):
         idx = 0
         rotate = 0
         next_lead_player = lead_player
+        highest_rank = lead_card_rank
         # Decide who can win this round, and the winner will lead next round
         for p in players:
             if idx == 0:
+                # Skip the leader himself
+                idx += 1
                 continue
             
             shoot_card = board_card[idx]
@@ -390,14 +392,14 @@ class htgame(htplayer, htapi):
             shoot_card_rank = self.ht.get_card_rank(shoot_card)
             
             if shoot_card_suit == lead_card_suit:
-                if shoot_card_rank > lead_card_rank:
+                if shoot_card_rank > highest_rank:
                     next_lead_player = p
                     rotate = idx
+                    highest_rank = shoot_card_rank
 
             idx += 1
-            
+
         self.ht.msg("Next lead player: " + next_lead_player.get_name())
-        
         if rotate > 0:
             self.__rotate_player_position(rotate)
         
@@ -420,7 +422,7 @@ class htgame(htplayer, htapi):
                     [self.ht.str2suit('Spade'), self.ht.str2suit('Diamond')]
                     )
                 if len(unused) == 0:
-                    print ("Player does not have suit Spade/Diamond. Allow heart bread!")
+                    print ("Player does not have suit Spade/Diamond. Allow heart break!")
                     unused = player.get_unused_card([self.ht.str2suit('Heart')])
                     output = unused
                     return output
@@ -455,6 +457,7 @@ class htgame(htplayer, htapi):
             # Follow the suit
             unused = player.get_unused_card([suit])
             if len(unused) == 0:
+                print ("Do not have the same suit" + str(suit))
                 # Can use any card, can heart-break
                 unused = player.get_unused_card([
                     self.ht.str2suit('Spade'), self.ht.str2suit('Heart'), self.ht.str2suit('Diamond'), self.ht.str2suit('Club')
@@ -504,13 +507,15 @@ class htgame(htplayer, htapi):
         
         # Get user card and add it
         is_lead = True
+        lead_suit = self.ht.str2suit('Club')
         for p in self.players:        
             data = {
                 'board_card': self.board_card, 'used_card': self.used_card,
+                'unused_card': p.get_unused_card(),
                 'roundnum': self.roundnum,
                 'is_hb': self.is_hb, 'players': self.players}
             
-            data['avail_card'] = self.__auto_pick_avail(self.ht.str2suit('Club'), p, is_lead)
+            data['avail_card'] = self.__auto_pick_avail(lead_suit, p, is_lead)
             
             self.ht.msg("Turn: " + p.get_name())
             output = p.time2shoot(data)
@@ -519,7 +524,9 @@ class htgame(htplayer, htapi):
         
             self.used_card.append(output)
             self.board_card.append(output)
-            is_lead = False
+            if is_lead == True:
+                is_lead = False
+                lead_suit = self.ht.get_card_suit(output)
             
         self.__round_over()
         self.nextround()
@@ -529,22 +536,30 @@ class htgame(htplayer, htapi):
         
         # Get user card and add it
         is_lead = True
+        lead_suit = None
         for p in self.players:        
             data = {
                 'board_card': self.board_card, 'used_card': self.used_card,
+                'unused_card': p.get_unused_card(),
                 'roundnum': self.roundnum,
                 'is_hb': self.is_hb, 'players': self.players}
             
-            data['avail_card'] = self.__auto_pick_avail(self.ht.str2suit('Club'), p, is_lead)
+            data['avail_card'] = self.__auto_pick_avail(lead_suit, p, is_lead)
             
             self.ht.msg("Turn: " + p.get_name())
             output = p.time2shoot(data)
             if output == None:
                 self.ht.errmsg("Invalid card output")
-        
+            
+            if self.is_hb == False and self.ht.get_card_suit(output) == self.ht.str2suit('Heart'):
+                self.msg("Heart break")
+                self.is_hb = True
+                
             self.used_card.append(output)
             self.board_card.append(output)
-            is_lead = False
+            if is_lead == True:
+                is_lead = False
+                lead_suit = self.ht.get_card_suit(output)
             
         self.__round_over()
         self.nextround()

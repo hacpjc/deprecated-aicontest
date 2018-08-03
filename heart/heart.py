@@ -6,6 +6,7 @@
 
 from deuces import Card
 import sys
+import random
 
 from htapi import htapi, htplayer, htgame
 
@@ -16,10 +17,12 @@ class dummyai(htapi):
         pass
     
     def time2shoot(self, data):
-        unused_card = data['avail_card']
+        unused_card = data['unused_card']
+        avail_card = data['avail_card']
         
-        print ("...avail card: " + self.ht.get_card_pretty_list(unused_card))
-        card = unused_card[0]
+        print ("...unused card: " + self.ht.get_card_pretty_list(unused_card))
+        print ("...avail card: " + self.ht.get_card_pretty_list(avail_card))
+        card = random.choice(avail_card)
         print ("...shoot card: " + self.ht.get_card_pretty(card))
         return card
 
