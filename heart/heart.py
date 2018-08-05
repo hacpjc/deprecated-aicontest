@@ -184,8 +184,8 @@ class hacbot(htapi):
         self.my_unused_card = data['player_unused_card'][:]
         self.my_avail_card = data['avail_card'][:]
 
-        print ("unused card: " + self.ht.get_card_pretty_list(self.my_unused_card))
-        print ("avail card: " + self.ht.get_card_pretty_list(self.my_avail_card))
+        self.ht.msg("unused card: " + self.ht.get_card_pretty_list(self.my_unused_card))
+        self.ht.msg("avail card: " + self.ht.get_card_pretty_list(self.my_avail_card))
                         
         if len(self.all_board_card) == 3:
             """
@@ -203,7 +203,7 @@ class hacbot(htapi):
             """
             card = self.__leadplay(data)
         
-        print (" -> shoot card: " + self.ht.get_card_pretty(card))
+        self.ht.msg(" -> shoot card: " + self.ht.get_card_pretty(card))
         return card
     
     def nextround(self, data):
@@ -259,11 +259,11 @@ class randomai(htapi):
         self.my_unused_card = data['player_unused_card'][:]
         self.my_avail_card = data['avail_card'][:]
 
-        print ("unused card: " + self.ht.get_card_pretty_list(self.my_unused_card))
-        print ("avail card: " + self.ht.get_card_pretty_list(self.my_avail_card))
+        self.ht.msg("unused card: " + self.ht.get_card_pretty_list(self.my_unused_card))
+        self.ht.msg("avail card: " + self.ht.get_card_pretty_list(self.my_avail_card))
         
         card = random.choice(self.my_avail_card)
-        print ("...shoot card: " + self.ht.get_card_pretty(card))
+        self.ht.msg(" -> shoot card: " + self.ht.get_card_pretty(card))
         return card
     
     
@@ -316,7 +316,7 @@ def test_htgame():
 
     game = htgame(htl)
 
-    for gamenum in range(2000):
+    for gamenum in range(1):
         game.auto_deal()    
         for roundnum in range(1, 14):
             game.auto_progress()

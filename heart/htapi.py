@@ -26,15 +26,23 @@ class htapi():
             traceback.print_exc(file=sys.stderr)
             sys.stderr.flush()
 
+    def logdict(self, dict):
+        """
+        Output log to stdout by a python dict input
+        TODO: Write to a file, maybe?
+        """
+        print(format(dict))
+        sys.stdout.flush()
+
     # Debug tool - Print a list of string(s)
     def msg(self, *argv):
-        sys.stdout.write("...")
-        print("".join(list(argv)))
-        sys.stdout.flush()
+        sys.stderr.write("...")
+        sys.stderr.write("".join(list(argv)) + "\n")
+        sys.stderr.flush()
 
     def errmsg(self, *argv):
         sys.stderr.write(" *** ERROR: ")
-        print("".join(list(argv)))
+        sys.stderr.write("".join(list(argv)) + "\n")
         sys.stderr.flush()
         self.bt()
 
