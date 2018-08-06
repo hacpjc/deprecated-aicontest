@@ -8,6 +8,8 @@ from deuces import Card
 import sys
 import random
 
+from gnome_luis import ai_louis
+
 from htapi import htapi, htplayer, htgame
 
 class hacbot(htapi):
@@ -310,13 +312,13 @@ def test_htplayer():
 def test_htgame():
     htl = []
     htl.append(htplayer("hac", "54088", hacbot))
-    htl.append(htplayer("selmon", "54099", randomai))
+    htl.append(htplayer("selmon", "54099", ai_louis))
     htl.append(htplayer("spoka", "52252", randomai))
     htl.append(htplayer("franklin", "59467", randomai))
 
     game = htgame(htl)
 
-    for gamenum in range(1):
+    for gamenum in range(2000):
         game.auto_deal()    
         for roundnum in range(1, 14):
             game.auto_progress()
