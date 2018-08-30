@@ -6,37 +6,70 @@
 # Released Date: Aug 20, 2018
 #
 
-import random
-import shutil
-import argparse
-from datetime import datetime
-
-from time import time
-from PIL  import Image
-from io   import BytesIO
-
-import os
-import cv2
-import math
-import numpy as np
-import base64
-import logging
-
+import sys, traceback, os, random, math
 import json
 
-# base64.b64decode(dashboard["image"]))
+def bt():
+    try:   
+        raise Exception("Manually raise an exception.")
+    except Exception:
+        traceback.print_exc(file=sys.stderr)
+        sys.stderr.flush()
+        
+def msg(*argv):
+    sys.stderr.write("...")
+    sys.stderr.write("".join(list(argv)) + "\n")
+    sys.stderr.flush()
 
+def errmsg(*argv):
+    sys.stderr.write(" *** ERROR: ")
+    sys.stderr.write("".join(list(argv)) + "\n")
+    sys.stderr.flush()
+    bt()
+    
+def vbsmsg(*argv):
+    sys.stderr.write("...")
+    sys.stderr.write("".join(list(argv)) + "\n")
+    sys.stderr.flush()
+    
+import cv2, base64, numpy
+from PIL  import Image
+from io   import BytesIO
+class hacjpg():
 
-class IP(object):
+    """
+    Use this abstract jpg class to simplify image (jpeg) processing by using cv2 module.
+    OpenCV tutorial: https://opencv-python-tutroals.readthedocs.io/en/latest/py_tutorials/py_tutorials.html
+    
+    Depend: cv2, base64
+    """
     def __init__(self):
         pass
     
+    def open_base64tojpg(self, base64img):
+        """
+        Input: Convert a base64 input into a opencv img object, e.g.
+        
+        Output: A list of RGB array: [255 255 255] [255 255 255] ...
+        """
+        jpg = base64.b64decode(base64img)
+        nparray = numpy.asarray(Image.open(BytesIO(jpg)))
+        
+        return nparray
+    
+    def close(self, jpg):
+        if jpg:
+            del jpg
+    
+    def show(self, img, name = "image", scale = 1.0):
+        cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(name, img)
+        cv2.waitKey(1)
 
-class Car(object):
-    MAX_STEERING_ANGLE = 40.0
-
+class Car(hacjpg):
     def __init__(self, emit_func):
         self._emit_func = emit_func
+        self.hacjpg = hacjpg()
 
     def rx_telemetry(self, dashboard):
         self._dashboard = dashboard
@@ -54,7 +87,7 @@ class Car(object):
         Output: 'manual'
         """
         
-        print('manual mode')
+        vbsmsg('manual mode')
         
         self._emit_func('manual', data={}, skip_sid=True)
 
@@ -78,10 +111,19 @@ class Car(object):
         """
         data = { 'steering_angle': 0.0, 'throttle': 0 }
         
+        #
+        # Display car's vanilla camera 'source'
+        #        
+        self.img = self.hacjpg.open_base64tojpg(dashboard['image'])
+        del dashboard['image']
+        self.hacjpg.show(self.img, name="source")
         
+        #
+        # Send control command to car
+        #
         output = { 
             'steering_angle': str(data['steering_angle']), 
-            'throttle': str(data['throttle']) 
+            'throttle': str(data['throttle']),
             }
         self._emit_func('steer', output, skip_sid=True)
         
@@ -89,12 +131,14 @@ class Car(object):
         """
         Time to send commands to the client. Output:
         {
-            'steering_angle', 
+            'steering_angle': -45 ~ +45,
+            'throttle': 0.0 ~ 1.0,
+            'brakes': ?
         }
         """
         data = { 'steering_angle': 0, 'throttle': 1.0 }
         
-        print("sid: ", sid, "environ: ", format(environ))
+        vbsmsg("sid: ", sid, "environ: ", format(environ))
         
         output = { 
             'steering_angle': str(data['steering_angle']), 
@@ -109,16 +153,15 @@ if __name__ == "__main__":
 
     sio = socketio.Server()
     def my_emit_func(event_name, data, skip_sid=True):
-        print (" -> emit: " + str(event_name) + ", data=" + str(json.dumps(data)) + ", skip_sid=" + str(skip_sid))
+        vbsmsg("emit: " + str(event_name) + ", data=" + str(json.dumps(data)) + ", skip_sid=" + str(skip_sid))
         sio.emit(event_name, data=data, skip_sid=skip_sid)
 
     car = Car(emit_func = my_emit_func)
 
     @sio.on('telemetry')
     def telemetry(sid, dashboard):
-        print (" <- rx: " + str(sid))
         if dashboard:
-            print (format(json.dumps(dashboard)))
+            vbsmsg("recv: " + str(sid) + format(json.dumps(dashboard)))
         
         car.rx_telemetry(dashboard)
 
