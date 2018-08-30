@@ -11,11 +11,6 @@ import shutil
 import argparse
 from datetime import datetime
 
-import socketio
-import eventlet
-import eventlet.wsgi
-from flask import Flask
-    
 from time import time
 from PIL  import Image
 from io   import BytesIO
@@ -29,6 +24,14 @@ import logging
 
 import json
 
+# base64.b64decode(dashboard["image"]))
+
+
+class IP(object):
+    def __init__(self):
+        pass
+    
+
 class Car(object):
     MAX_STEERING_ANGLE = 40.0
 
@@ -36,6 +39,8 @@ class Car(object):
         self._emit_func = emit_func
 
     def rx_telemetry(self, dashboard):
+        self._dashboard = dashboard
+        
         if dashboard:
             self.rx_telemetry_try2drive(dashboard)
         else:
@@ -71,7 +76,8 @@ class Car(object):
         
         Output: 'steer'
         """
-        data = { 'steering_angle': 0, 'throttle': 1.0 }
+        data = { 'steering_angle': 0.0, 'throttle': 0 }
+        
         
         output = { 
             'steering_angle': str(data['steering_angle']), 
@@ -86,10 +92,9 @@ class Car(object):
             'steering_angle', 
         }
         """
-        data = { 'steering_angle': 0.0, 'throttle': 1.0 }
+        data = { 'steering_angle': 0, 'throttle': 1.0 }
         
         print("sid: ", sid, "environ: ", format(environ))
-        
         
         output = { 
             'steering_angle': str(data['steering_angle']), 
@@ -98,32 +103,20 @@ class Car(object):
         self._emit_func('steer', output, skip_sid=True)
 
 if __name__ == "__main__":
-#     parser = argparse.ArgumentParser(description='AutoDriveBot')
-#     parser.add_argument(
-#         'record',
-#         type=str,
-#         nargs='?',
-#         default='',
-#         help='Path to image folder to record the images.'
-#     )
-#     args = parser.parse_args()
-# 
-#     if args.record:
-#         if not os.path.exists(args.record):
-#             os.makedirs(args.record)
-#         logit("Start recording images to %s..." % args.record)
+    import socketio
+    import eventlet.wsgi
+    from flask import Flask
 
     sio = socketio.Server()
     def my_emit_func(event_name, data, skip_sid=True):
-        print (" -> emit: " + str(event_name))
-        print ("data: ", format(data), "skip_sid: ", skip_sid)
-        sio.emit(event_name, data, skip_sid)
+        print (" -> emit: " + str(event_name) + ", data=" + str(json.dumps(data)) + ", skip_sid=" + str(skip_sid))
+        sio.emit(event_name, data=data, skip_sid=skip_sid)
 
     car = Car(emit_func = my_emit_func)
 
     @sio.on('telemetry')
     def telemetry(sid, dashboard):
-        print (" <- rx:")
+        print (" <- rx: " + str(sid))
         if dashboard:
             print (format(json.dumps(dashboard)))
         
