@@ -414,7 +414,6 @@ class htgame(htplayer, htapi):
         for i in range(count):
             p = self.players.pop(0)
             self.players.append(p)
-        
 
     def shoot(self, ident, card):
         p = self.__find_player(ident)

@@ -64,9 +64,11 @@ class HacBot(PokerBot):
         cadidate_cards = data['self']['candidateCards']
         cards = data['self']['cards']
         self.my_hand_cards = []
+        
         for card_str in cards:
             card = Card(card_str)
             self.my_hand_cards.append(card)
+            
         message = "My Cards:{}".format(self.my_hand_cards)
         system_log.show_message(message)
         card_index = 0
@@ -78,6 +80,7 @@ class HacBot(PokerBot):
         message = "Pick Card:{}".format(cadidate_cards[card_index])
         system_log.show_message(message)
         system_log.save_logs(message)
+        
         return cadidate_cards[card_index]
 
     def expose_my_cards(self, yourcards):
@@ -100,6 +103,7 @@ class HacBot(PokerBot):
         players = data['players']
         expose_player = None
         expose_card = None
+        
         for player in players:
             try:
                 if player['exposedCards'] != [] and len(player['exposedCards']) > 0 and player['exposedCards'] != None:
@@ -108,6 +112,7 @@ class HacBot(PokerBot):
             except Exception, e:
                 system_log.show_message(e.message)
                 system_log.save_logs(e.message)
+                
         if expose_player != None and expose_card != None:
             message = "Player:{}, Expose card:{}".format(expose_player, expose_card)
             system_log.show_message(message)
@@ -148,10 +153,12 @@ class HacBot(PokerBot):
         message = "Player name:{}, Pass Cards:{}".format(self.player_name, self.my_pass_card)
         system_log.show_message(message)
         system_log.save_logs(message)
+        
         for key in deal_scores.keys():
             message = "Player name:{}, Deal score:{}".format(key, deal_scores.get(key))
             system_log.show_message(message)
             system_log.save_logs(message)
+            
         for key in initial_cards.keys():
             message = "Player name:{}, Initial cards:{}, Receive cards:{}, Picked cards:{}".format(key, initial_cards.get(key), receive_cards.get(key), picked_cards.get(key))
             system_log.show_message(message)

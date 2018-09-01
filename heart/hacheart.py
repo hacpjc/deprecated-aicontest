@@ -1,4 +1,4 @@
-#coding=UTF-8
+# coding=UTF-8
 
 import os, sys, json
 
@@ -17,15 +17,15 @@ class PokerSocket(object):
         self.poker_bot = poker_bot
         self.token = token
 
-    def takeAction(self, action, data):
+    def event_dispatch(self, event, data):
         """
         Event dispatch! Call bot method.
         """
-        if action == "new_deal":
+        if event == "new_deal":
             self.poker_bot.receive_cards(data)
-        elif action == "receive_opponent_cards":
+        elif event == "receive_opponent_cards":
             self.poker_bot.receive_opponent_cards(data)
-        elif action == "pass_cards":
+        elif event == "pass_cards":
             pass_cards = self.poker_bot.pass_cards(data)
             self.ws.send(json.dumps(
                 {
@@ -35,7 +35,7 @@ class PokerSocket(object):
                         "cards": pass_cards
                     }
                 }))
-        elif action == "your_turn":
+        elif event == "your_turn":
             pick_card = self.poker_bot.pick_card(data)
             
             message = "Send message:{}".format(json.dumps(
@@ -59,31 +59,31 @@ class PokerSocket(object):
                         "turnCard": pick_card
                     }
                 }))
-        elif action == "turn_end":
+        elif event == "turn_end":
             self.poker_bot.turn_end(data)
-        elif action == "expose_cards":
-            export_cards = self.poker_bot.expose_my_cards(data)
-            if export_cards != None:
+        elif event == "expose_cards":
+            expose_cards = self.poker_bot.expose_my_cards(data)
+            if expose_cards != None:
                 self.ws.send(json.dumps(
                     {
                         "eventName": "expose_my_cards",
                         "data": {
                             "dealNumber": data['dealNumber'],
-                            "cards": export_cards
+                            "cards": expose_cards
                         }
                     }))
-        elif action == "expose_cards_end":
+        elif event == "expose_cards_end":
             self.poker_bot.expose_cards_end(data)
-        elif action == "round_end":
+        elif event == "round_end":
             self.poker_bot.round_end(data)
-        elif action == "deal_end":
+        elif event == "deal_end":
             self.poker_bot.deal_end(data)
             self.poker_bot.reset_card_his()
-        elif action == "game_end":
+        elif event == "game_end":
             self.poker_bot.game_over(data)
             self.ws.close()
             
-    def eventloop(self):
+    def event_loop(self):
         try:
             self.ws = create_connection(self.connect_url)
             self.ws.send(json.dumps({
@@ -106,11 +106,11 @@ class PokerSocket(object):
                 system_log.show_message(data)
                 system_log.save_logs(data)
                 
-                self.takeAction(event_name, data)
+                self.event_dispatch(event_name, data)
         except Exception, e:
             system_log.show_message(e)
             system_log.save_logs(e)
-            self.eventloop()
+            self.event_loop()
 
 
 def real_contest():
@@ -135,14 +135,7 @@ def real_contest():
     mybot = HacBot(player_name)
     
     myPokerSocket = PokerSocket(player_name, player_number, token, connect_url, mybot)
-    myPokerSocket.eventloop()
-
-def pseudo_contest():
-    """
-    Pseudo contest to play much more quickly than real contest mode.
-    """
-    pass
+    myPokerSocket.event_loop()
 
 if __name__ == "__main__":
     real_contest()
-#     pseudo_contest()

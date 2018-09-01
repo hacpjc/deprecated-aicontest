@@ -1,5 +1,8 @@
+# coding=UTF-8
+
 import os, sys, json, logging
 
+import unicodedata
 
 class Log(object):
 
@@ -34,7 +37,7 @@ class Card:
         value, self.suit = card_string[0], card_string[1]
         self.value = self.suit_value_dict[value]
         self.suit_index = self.suit_index_dict[self.suit]
-
+        
     def __str__(self):
         return self.val_string[14 - self.value] + self.suit
 
@@ -53,7 +56,18 @@ class Card:
 
     def __hash__(self):
         return hash(self.value.__hash__() + self.suit.__hash__())
-
+    
+    def get_suit(self):
+        return str(self.suit)
+    
+    def get_suit_num(self):
+        return self.suit_index
+    
+    def get_rank_num(self):
+        return self.value
+    
+    def get_rank(self):
+        return str(self.value)
 
 class PokerBot(object):
 
@@ -67,6 +81,9 @@ class PokerBot(object):
         self.game_score_cards = {Card("QS"), Card("TC"), Card("2H"), Card("3H"), Card("4H"), Card("5H"), Card("6H"),
                            Card("7H"), Card("8H"), Card("9H"), Card("TH"), Card("JH"), Card("QH"), Card("KH"),
                            Card("AH")}
+
+    def get_name(self):
+        return self.player_name
 
     # @abstractmethod
     def receive_cards(self, data):
