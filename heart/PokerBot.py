@@ -5,7 +5,14 @@ import os, sys, json, logging
 import unicodedata
 
 class Log(object):
-
+    def bt(self):
+        try:   
+            raise Exception("Manually raise an exception.")
+        except Exception:
+            import traceback
+            traceback.print_stack(file=sys.stderr)
+            sys.stderr.flush()
+            
     def __init__(self, is_debug=True):
         self.is_debug = is_debug
         self.msg = None
@@ -17,7 +24,8 @@ class Log(object):
         self.logger.setLevel(logging.INFO)
 
     def show_message(self, msg):
-        print msg
+        print (msg)
+        pass
         
     def save_logs(self, msg):
         if self.is_debug:
@@ -296,31 +304,32 @@ class SampleBot(PokerBot):
         for card_str in cards:
             card = Card(card_str)
             self.my_hand_cards.append(card)
-        pass_cards = []
-        count = 0
-        for i in range(len(self.my_hand_cards)):
-            card = self.my_hand_cards[len(self.my_hand_cards) - (i + 1)]
-            if card == Card("QS"):
-                pass_cards.append(card)
-                count += 1
-            elif card == Card("TC"):
-                pass_cards.append(card)
-                count += 1
-        for i in range(len(self.my_hand_cards)):
-            card = self.my_hand_cards[len(self.my_hand_cards) - (i + 1)]
-            if card.suit_index == 2:
-                pass_cards.append(card)
-                count += 1
-                if count == 3:
-                    break
-        if count < 3:
-            for i in range(len(self.my_hand_cards)):
-                card = self.my_hand_cards[len(self.my_hand_cards) - (i + 1)]
-                if card not in self.game_score_cards:
-                    pass_cards.append(card)
-                    count += 1
-                    if count == 3:
-                        break
+            
+        pass_cards = [self.my_hand_cards[0], self.my_hand_cards[1], self.my_hand_cards[2]]
+#         count = 0
+#         for i in range(len(self.my_hand_cards)):
+#             card = self.my_hand_cards[len(self.my_hand_cards) - (i + 1)]
+#             if card == Card("QS"):
+#                 pass_cards.append(card)
+#                 count += 1
+#             elif card == Card("TC"):
+#                 pass_cards.append(card)
+#                 count += 1
+#         for i in range(len(self.my_hand_cards)):
+#             card = self.my_hand_cards[len(self.my_hand_cards) - (i + 1)]
+#             if card.suit_index == 2:
+#                 pass_cards.append(card)
+#                 count += 1
+#                 if count == 3:
+#                     break
+#         if count < 3:
+#             for i in range(len(self.my_hand_cards)):
+#                 card = self.my_hand_cards[len(self.my_hand_cards) - (i + 1)]
+#                 if card not in self.game_score_cards:
+#                     pass_cards.append(card)
+#                     count += 1
+#                     if count == 3:
+#                         break
         return_values = []
         for card in pass_cards:
             return_values.append(card.toString())
