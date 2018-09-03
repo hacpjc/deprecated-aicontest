@@ -1,145 +1,22 @@
 # coding=UTF-8
 import os, sys, json, random
-from PokerBot import Card, system_log
+from PokerBot import Card, system_log, Htapi
 from HacBot import HacBot
-
-class Htapi():
-    
-    def __init__(self):
-        from uptime import uptime
-        random.seed(int(uptime()))
-
-    def logdict(self, dict):
-        """
-        Output log to stdout by a python dict input
-        TODO: Write to a file, maybe?
-        """
-        print(format(dict))
-        sys.stdout.flush()
-
-    # Debug tool - Print a list of string(s)
-    def msg(self, *argv):
-        sys.stdout.write("...")
-        sys.stdout.write("".join(list(argv)) + "\n")
-        sys.stdout.flush()
-
-    def errmsg(self, *argv):
-        sys.stderr.write(" *** ERROR: ")
-        sys.stderr.write("".join(list(argv)) + "\n")
-        sys.stderr.flush()
-        self.bt()
-        sys.exit(255)
-        
-    def get52cards(self):
-        """
-        Output: ['2S', '3S', ..., 'AS', '2H', ... 'AC' ]
-        """
-        suits = ['S', 'H', 'D', 'C']
-        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
-        
-        allcard = []
-        for suit in range(0, 4):
-            for rank in range(0, 13):
-                card = Card(str(ranks[rank]) + str(suits[suit]))
-                allcard.append(card)
-        
-        return allcard
-    
-    def get_cards_by_suit(self, cards_in, suit = 'C'):
-        cards = []
-        for c in cards_in:
-            if c.get_suit() == suit:
-                cards.append(c)
-                
-        return cards
-    
-    def get_cards_by_suits(self, cards_in, suits):
-        cards = []
-        for suit in suits:
-            cards += self.get_cards_by_suit(cards_in, suit)
-            
-        return cards
-    
-    def find_card(self, cards_in, card2find):
-        """
-        Find a single card.
-        
-        Output: None | Card('XX')
-        """
-        for c in cards_in:
-            if c == card2find:
-                return c
-            
-        return None
-    
-    def find_cards(self, cards_in, cards2find):
-        """
-        Find mutiple cards.
-        
-        Output: [ Card('XX), Card('OO') ]
-        Output: []
-        """
-        found = []
-        for c2find in cards2find:
-            for c in cards_in:
-                if c2find == c:
-                    found.append(c)
-        
-        return found
-
-    def remove_card(self, cards_in, card2rm):
-        """
-        Remove a single card!
-        """
-        c = None
-        if cards_in.count(card2rm) > 0:
-            c_idx = cards_in.index(card2rm)
-            c = cards_in.pop(c_idx)
-            
-        return c
-        
-    def remove_cards(self, cards_in, cards2rm):
-        """
-        Remove cards if there's any.
-        
-        Output: Removed cards
-        """
-        remove = []
-        
-        for c in cards2rm:
-            rm = self.remove_card(cards_in, c)
-            remove.append(rm)
-        
-        return remove
-    
-    def arrange_cards(self, card_list):
-        # Sort by card suit and rank
-        output = sorted(card_list, key=lambda v: (v.get_suit_num() * 20 + v.get_rank_num()))
-        return output
-    
-    def shuffle_cards(self, card_list):
-        random.shuffle(card_list)
-        return card_list
-    
-    def clone_cards(self, cards):
-        output = cards[:]
-        return output
-        
 
 class PseudoHeart(Htapi):
     """
     Create a virtual game which can play faster!
     """
-    game_score_cards = {Card("QS"), Card("TC"),
+    game_score_cards = [Card("QS"), Card("TC"),
                         Card("2H"), Card("3H"), Card("4H"), Card("5H"), Card("6H"), 
                         Card("7H"), Card("8H"), Card("9H"), Card("TH"), Card("JH"), 
-                        Card("QH"), Card("KH"), Card("AH")}
+                        Card("QH"), Card("KH"), Card("AH")]
     
     # If have all penalty cards, the player shoots the moon and win a lot.
-    game_penalty_cards = {Card("QS"),
+    game_penalty_cards = [Card("QS"),
                         Card("2H"), Card("3H"), Card("4H"), Card("5H"), Card("6H"), 
                         Card("7H"), Card("8H"), Card("9H"), Card("TH"), Card("JH"), 
-                        Card("QH"), Card("KH"), Card("AH")}
+                        Card("QH"), Card("KH"), Card("AH")]
     
     def __init__(self, player_bots):
         if len(player_bots) != 4:
@@ -152,8 +29,10 @@ class PseudoHeart(Htapi):
         
         # Save bot object into self.player_bots 
         self.player_tups = []
+        id = 0
         for p in player_bots:
-            player_tup = {'bot': p, 'name': p.get_name(),
+            id += 1
+            player_tup = {'bot': p, 'name': p.get_name(), 'id': id,
                             'hand': [], 'pick': [], 'round_pick': [], 'shoot': [], 'expose': False,
                             'score': 0, 'score_accl': 0, 'shoot_moon': False,
                             }
@@ -212,6 +91,26 @@ class PseudoHeart(Htapi):
         
         for ptup in self.player_tups:
             ptup['round_pick'] = []
+            
+    def _ev_new_game(self, ptup):
+        """
+        Event: new game
+        """
+        players = []
+        for ptup_this in self.player_tups:
+            pdata = {
+                'playerName': ptup_this['name'],
+                'playerNumber': ptup_this['id'],
+                'status': 0 
+                     }
+            players.append(pdata)            
+        
+        data = {
+            'players': players
+            }
+        
+        pbot = ptup['bot']
+        pbot.new_game(data)
 
     def _ev_receive_cards(self, ptup):
             """
@@ -316,7 +215,10 @@ class PseudoHeart(Htapi):
         """
         Ask the player if he wants to expose AH.
         """
-        data = self.htapi.clone_cards(ptup['hand'])
+        data = {
+            'dealNumber': self.db['dealNumber'],
+            'cards': ['AH'] 
+            }
                                       
         pbot = ptup['bot']
         card = pbot.expose_my_cards(data)
@@ -368,7 +270,9 @@ class PseudoHeart(Htapi):
         for ptup_this in self.player_tups:
             data_this = {}
             
+            data_this['playerNumber'] = ptup_this['id']
             data_this['playerName'] = ptup_this['name']
+            
             if ptup_this['expose'] == True:
                 data_this['exposedCards'] = [Card('AH').toString()]
             else:
@@ -380,7 +284,7 @@ class PseudoHeart(Htapi):
                 # Add a 'self'!
                 another_data_this = dict(data_this)
                 another_data_this['playerName'] = 'self'
-                data_players.append(another_data_this)
+                data['self'] = another_data_this
 
         pbot = ptup['bot']
         pbot.expose_cards_end(data)
@@ -402,7 +306,7 @@ class PseudoHeart(Htapi):
             
         pbot = ptup['bot']
         pbot.game_over(data)
-
+        
     def game_new_deal(self):
         """
         Deliver 13 cards to each player
@@ -505,17 +409,26 @@ class PseudoHeart(Htapi):
                 return candidates
             
         self.errmsg("Cannot get candidate cards")
-        return None        
+        return None
+    
+    def _ev_pick_card(self, ptup):
+        """
+        Event: pick_card - Ask the player to shoot a card.
+        """
+        # round cards
+        round_cards = self.db['roundCards']
         
-    def game_shoot1card(self, ptup):
-        """
-        Make the player shoot 1 card!
-        """
+        # Candidate cards
         candidates = self._get_candidates(ptup)
         self.htapi.arrange_cards(candidates)
         candidates = self.htapi.clone_cards(candidates)
         
-        print ("Player " + ptup['name'] + " candidate cards: ", candidates)
+        # Round players
+        round_players = []
+        for ptup_this in self.player_tups:
+            rp = {}
+            rp = ptup_this['name']
+            round_players.append(rp)
         
         data = {'self': {
                         'cards': [x.toString() for x in ptup['hand']],
@@ -523,15 +436,27 @@ class PseudoHeart(Htapi):
                         
                         'gameNumber': self.db['gameNumber'],
                         'dealNumber': self.db['dealNumber'],
-                    }}
+                        'roundCard': [x.toString() for x in round_cards]
+                    },
+            'roundPlayers': round_players
+        }
         
         pbot = ptup['bot']
         card2shoot = pbot.pick_card(data)
         card2shoot = Card(card2shoot)
+        
+        return card2shoot    
+        
+    def game_shoot1card(self, ptup):
+        """
+        Make the player shoot 1 card!
+        """
+
+        card2shoot = self._ev_pick_card(ptup)
         if self.htapi.find_card(ptup['hand'], card2shoot) == None:
             self.errmsg("Cannot shoot un-existed card at player: " + ptup['name'])
             
-        print ("Player shoots: ", card2shoot, self.db['unusedCards'], ptup['hand'])
+        print ("Player " + ptup['name'] + " shoots: ", card2shoot, self.db['unusedCards'], ptup['hand'])
         
         # Shoot the card.
         removed = self.htapi.remove_card(ptup['hand'], card2shoot)
@@ -714,6 +639,10 @@ class PseudoHeart(Htapi):
         There're 16 deals in a game
         """
         self.game_next_game()
+        
+        # Inform the players there's a new game to start.
+        for ptup in self.player_tups:
+            self._ev_new_game(ptup)
         
         DEAL_PER_GAME = 16
         for deal in range(1, DEAL_PER_GAME + 1):

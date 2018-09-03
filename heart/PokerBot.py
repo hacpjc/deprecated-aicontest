@@ -1,6 +1,6 @@
 # coding=UTF-8
 
-import os, sys, json, logging
+import os, sys, json, logging, random
 
 import unicodedata
 
@@ -97,6 +97,10 @@ class PokerBot(object):
     def receive_cards(self, data):
         err_msg = self.__build_err_msg("receive_cards")
         raise NotImplementedError(err_msg)
+    
+    def new_game(self, data):
+        err_msg = self.__build_err_msg("new_game")
+        raise NotImplementedError(err_msg)        
 
     def pass_cards(self, data):
         err_msg = self.__build_err_msg("pass_cards")
@@ -287,6 +291,131 @@ class PokerBot(object):
             system_log.show_message(e.message)
             return None
 
+class Htapi():
+    
+    def __init__(self):
+        from uptime import uptime
+        random.seed(int(uptime()))
+
+    def logdict(self, dict):
+        """
+        Output log to stdout by a python dict input
+        TODO: Write to a file, maybe?
+        """
+        print(format(dict))
+        sys.stdout.flush()
+
+    # Debug tool - Print a list of string(s)
+    def msg(self, *argv):
+        sys.stdout.write("...")
+        sys.stdout.write("".join(list(argv)) + "\n")
+        sys.stdout.flush()
+
+    def errmsg(self, *argv):
+        sys.stderr.write(" *** ERROR: ")
+        sys.stderr.write("".join(list(argv)) + "\n")
+        sys.stderr.flush()
+        self.bt()
+        sys.exit(255)
+        
+    def get52cards(self):
+        """
+        Output: ['2S', '3S', ..., 'AS', '2H', ... 'AC' ]
+        """
+        suits = ['S', 'H', 'D', 'C']
+        ranks = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A']
+        
+        allcard = []
+        for suit in range(0, 4):
+            for rank in range(0, 13):
+                card = Card(str(ranks[rank]) + str(suits[suit]))
+                allcard.append(card)
+        
+        return allcard
+    
+    def calc_card_num_by_suit(self, cards_in, suit = 'C'):
+        return len(self.get_cards_by_suit(cards_in, suit))
+    
+    def get_cards_by_suit(self, cards_in, suit = 'C'):
+        cards = []
+        for c in cards_in:
+            if c.get_suit() == suit:
+                cards.append(c)
+                
+        return cards
+    
+    def get_cards_by_suits(self, cards_in, suits):
+        cards = []
+        for suit in suits:
+            cards += self.get_cards_by_suit(cards_in, suit)
+            
+        return cards
+    
+    def find_card(self, cards_in, card2find):
+        """
+        Find a single card.
+        
+        Output: None | Card('XX')
+        """
+        for c in cards_in:
+            if c == card2find:
+                return c
+            
+        return None
+    
+    def find_cards(self, cards_in, cards2find):
+        """
+        Find mutiple cards.
+        
+        Output: [ Card('XX), Card('OO') ]
+        Output: []
+        """
+        found = []
+        for c2find in cards2find:
+            for c in cards_in:
+                if c2find == c:
+                    found.append(c)
+        
+        return found
+
+    def remove_card(self, cards_in, card2rm):
+        """
+        Remove a single card!
+        """
+        c = None
+        if cards_in.count(card2rm) > 0:
+            c_idx = cards_in.index(card2rm)
+            c = cards_in.pop(c_idx)
+            
+        return c
+        
+    def remove_cards(self, cards_in, cards2rm):
+        """
+        Remove cards if there's any.
+        
+        Output: Removed cards
+        """
+        remove = []
+        
+        for c in cards2rm:
+            rm = self.remove_card(cards_in, c)
+            remove.append(rm)
+        
+        return remove
+    
+    def arrange_cards(self, card_list):
+        # Sort by card suit and rank
+        output = sorted(card_list, key=lambda v: (v.get_suit_num() * 20 + v.get_rank_num()))
+        return output
+    
+    def shuffle_cards(self, card_list):
+        random.shuffle(card_list)
+        return card_list
+    
+    def clone_cards(self, cards):
+        output = cards[:]
+        return output
+    
 class SampleBot(PokerBot):
 
     def __init__(self, name):
@@ -294,7 +423,10 @@ class SampleBot(PokerBot):
         self.my_hand_cards = []
         self.expose_card = False
         self.my_pass_card = []
-
+    
+    def new_game(self, data):
+        pass
+    
     def receive_cards(self, data):
         self.my_hand_cards = self.get_cards(data)
 

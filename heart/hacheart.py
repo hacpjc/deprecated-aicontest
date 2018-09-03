@@ -23,6 +23,8 @@ class PokerSocket(object):
         """
         if event == "new_deal":
             self.poker_bot.receive_cards(data)
+        elif event == "new_game":
+            self.poker_bot.new_game(data)
         elif event == "receive_opponent_cards":
             self.poker_bot.receive_opponent_cards(data)
         elif event == "pass_cards":
