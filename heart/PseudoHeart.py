@@ -1,7 +1,6 @@
 # coding=UTF-8
 import os, sys, json, random
 from PokerBot import Card, system_log, Htapi
-from HacBot import HacBot
 
 class PseudoHeart(Htapi):
     """
@@ -34,7 +33,7 @@ class PseudoHeart(Htapi):
             id += 1
             player_tup = {'bot': p, 'name': p.get_name(), 'id': id,
                             'hand': [], 'pick': [], 'round_pick': [], 'shoot': [], 'expose': False,
-                            'score': 0, 'score_accl': 0, 'shoot_moon': False,
+                            'score': 0, 'score_accl': 0, 'shoot_moon': False, 'shoot_moon_accl': 0
                             }
             self.player_tups.append(player_tup)
             self.htapi.msg("Add new player: " + player_tup['name'])
@@ -499,9 +498,6 @@ class PseudoHeart(Htapi):
             score *= 4
             ptup['shoot_moon'] = True
                 
-                
-        self.htapi.dbg("Player: ", ptup['name'], ", pick: ", format(picked_cards), ", score: ", str(score))
-       
         ptup['score'] = score
         
     def game_round_end(self, round_num):
@@ -552,6 +548,13 @@ class PseudoHeart(Htapi):
         """
         for ptup in self.player_tups:
             self._recalculate_round_score(ptup)
+            
+        """
+        Check if somebody shoot moon
+        """
+        for ptup in self.player_tups:
+            if ptup['shoot_moon'] == True:
+                ptup['shoot_moon_accl'] += 1                
         
         """
         Inform the user an event
@@ -561,7 +564,12 @@ class PseudoHeart(Htapi):
     
     def show_score(self):
         for ptup in self.player_tups:
-            self.htapi.dbg("Player: " + ptup['name'] + ", score: " + str(ptup['score']) + ", score_accl: " + str(ptup['score_accl']))
+            self.htapi.dbg(
+                "Player: " + ptup['name'] + 
+                ", score: " + str(ptup['score']) + 
+                ", score_accl: " + str(ptup['score_accl']) + 
+                ", shoot_moon_accl: " + str(ptup['shoot_moon_accl'])
+                )
        
     def game_round(self, round_num):
         """
@@ -662,16 +670,31 @@ def pseudo_contest():
     """
     Pseudo contest to play much more quickly than real contest mode.
     """
-    from PokerBot import SampleBot
-    mybot = HacBot('hac')
+    from HacBot import HacBot
+    from SampleBot import SampleBot
+    
+    #
+    # Decide game loops from argv[1]
+    #
+    if len(sys.argv) < 2:
+        game_max = 4 
+    else:
+        game_max = int(sys.argv[1])
+    
+    #
+    # If you feel the msg is to annoying, disable it in Htapi
+    #
+    mybot = HacBot('hac', is_debug=False)
     pseudo_player1 = SampleBot('bota')
     pseudo_player2 = SampleBot('botb')
     pseudo_player3 = SampleBot('botc')
     players = [mybot, pseudo_player1, pseudo_player2, pseudo_player3]
-    
+
+    #    
+    # Start the game loop by specified bots.
+    #
     hgame = PseudoHeart(players)
-    
-    hgame.game_loop(loop_max = 60)
+    hgame.game_loop(loop_max = game_max)
 
 def unitest():
     htapi = Htapi()

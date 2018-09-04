@@ -6,10 +6,10 @@ class HacBot(PokerBot, Htapi):
     Hac's policy-based bot.
     """
     
-    def __init__(self, name):
+    def __init__(self, name, is_debug=False):
         super(HacBot, self).__init__(name)
 
-        self.htapi = Htapi()
+        self.htapi = Htapi(is_debug=is_debug)
                        
         self.players = {}
         self.stat = {}
