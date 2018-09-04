@@ -105,7 +105,8 @@ class HacBot(PokerBot, Htapi):
             if card == None:
                 self.htapi.errmsg("Cannot pick a card to pass")
             output.append(card.toString())
-        
+            
+        self.htapi.dbg(self.get_name() + " Pass 3 cards: " + format(output))
         return output
 
     def receive_opponent_cards(self, data):
@@ -304,13 +305,15 @@ class HacBot(PokerBot, Htapi):
         else:
             card = self.__midplay(data)
             
+        self.htapi.dbg(self.get_name() + " shoot card: " + format(card) + " from: " + format(data['self']['cards']))
         return card.toString()
     
     def pick_history(self, data, is_timeout, pick_his):
         """
         turn end
         """
-        pass
+        if data['turnPlayer'] != self.get_name():
+            self.htapi.dbg(data['turnPlayer'] + " shoot card: " + format(data['turnCard']))
     
     def round_end(self, data):
         pass
