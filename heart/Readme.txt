@@ -8,6 +8,6 @@
 # How to run pseudo-heart
 #
 
-> python2.7 PseudoHeart.py
+> python2.7 PseudoHeart.py <game number>
 
 #;
