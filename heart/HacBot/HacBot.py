@@ -26,6 +26,8 @@ class HacBot(PokerBot, Htapi):
                         Card("7H"), Card("8H"), Card("9H"), Card("TH"), Card("JH"), 
                         Card("QH"), Card("KH"), Card("AH")]
         
+        self.plz_rebuild_players = True
+        
     def _rebuild_players(self, data):
         """
         Configure player table by input data.
@@ -46,11 +48,17 @@ class HacBot(PokerBot, Htapi):
                 'score_accl': 0,
                 'score': 0,
                 'shoot': [],
+                'shoot_moon': 0,
                 'expose': False,
                 }
     
     def new_game(self, data):
-        self._rebuild_players(data)
+        """
+        The start of a new game.
+        """
+        if self.plz_rebuild_players == True:
+            self._rebuild_players(data)
+            self.plz_rebuild_players = False
     
     def receive_cards(self, data):
         """
@@ -308,116 +316,48 @@ class HacBot(PokerBot, Htapi):
         self.htapi.dbg(self.get_name() + " shoot card: " + format(card) + " from: " + format(data['self']['cards']))
         return card.toString()
     
+    def turn_end(self, data):
+        """
+        turn end
+        """
+        data_turn_player = data['turnPlayer']
+        
+        data_turn_card = data['turnCard']
+        data_turn_card = Card(data_turn_card)
+        
+        if data_turn_player != self.get_name():
+            self.htapi.dbg(data_turn_player + " shoot card: " + format(data_turn_card))
+            
+        this_player = self.players[data_turn_player]
+        this_player['shoot'].append(data_turn_card)
+        
     def pick_history(self, data, is_timeout, pick_his):
         """
         turn end
         """
-        if data['turnPlayer'] != self.get_name():
-            self.htapi.dbg(data['turnPlayer'] + " shoot card: " + format(data['turnCard']))
+        self.turn_end(data)
     
     def round_end(self, data):
         pass
     
     def deal_end(self, data):
-        pass
+        data_players = data['players']
+        
+        print ("...deal end")
+        print (data)
+        
+        for player in data_players:
+            local_player = self.players[player['playerName']]
+            local_player['score_accl'] = player['gameScore']
+            if player['shootingTheMoon'] == True:
+                local_player['shoot_moon'] += 1
+
+        for key in self.players.keys():
+            p = self.players[key]
+            # Reset deal-specific data.
+            p['score'] = 0
+            p['shoot'] = []
+            p['expose'] = False
     
     def game_over(self, data):
         pass
-
-
-# class HacBot(PokerBot):
-# 
-# 
-#     def expose_my_cards(self, yourcards):
-#         """
-#         TODO: Expose AH? WHY?
-#         """
-#         expose_card = []
-#         for card in self.my_hand_cards:
-#             if card == Card("AH"):
-#                 expose_card.append(card.toString())
-#                 
-#         message = "Expose Cards:{}".format(expose_card)
-#         
-#         system_log.show_message(message)
-#         system_log.save_logs(message)
-#         
-#         return expose_card
-# 
-#     def expose_cards_end(self, data):
-#         players = data['players']
-#         expose_player = None
-#         expose_card = None
-#         
-#         for player in players:
-#             try:
-#                 if player['exposedCards'] != [] and len(player['exposedCards']) > 0 and player['exposedCards'] != None:
-#                     expose_player = player['playerName']
-#                     expose_card = player['exposedCards']
-#             except Exception, e:
-#                 system_log.show_message(e.message)
-#                 system_log.save_logs(e.message)
-#                 
-#         if expose_player != None and expose_card != None:
-#             message = "Player:{}, Expose card:{}".format(expose_player, expose_card)
-#             system_log.show_message(message)
-#             system_log.save_logs(message)
-#             self.expose_card = True
-#         else:
-#             message = "No player expose card!"
-#             system_log.show_message(message)
-#             system_log.save_logs(message)
-#             self.expose_card = False
-# 
-#     def receive_opponent_cards(self, data):
-#         self.my_hand_cards = self.get_cards(data)
-#         players = data['players']
-#         for player in players:
-#             player_name = player['playerName']
-#             if player_name == self.player_name:
-#                 picked_cards = player['pickedCards']
-#                 receive_cards = player['receivedCards']
-#                 message = "User Name:{}, Picked Cards:{}, Receive Cards:{}".format(player_name, picked_cards, receive_cards)
-#                 system_log.show_message(message)
-#                 system_log.save_logs(message)
-# 
-#     def round_end(self, data):
-#         try:
-#             round_scores = self.get_round_scores(self.expose_card, data)
-#             for key in round_scores.keys():
-#                 message = "Player name:{}, Round score:{}".format(key, round_scores.get(key))
-#                 system_log.show_message(message)
-#                 system_log.save_logs(message)
-#         except Exception, e:
-#             system_log.show_message(e.message)
-# 
-#     def deal_end(self, data):
-#         self.my_hand_cards = []
-#         self.expose_card = False
-#         deal_scores, initial_cards, receive_cards, picked_cards = self.get_deal_scores(data)
-#         message = "Player name:{}, Pass Cards:{}".format(self.player_name, self.my_pass_card)
-#         system_log.show_message(message)
-#         system_log.save_logs(message)
-#         
-#         for key in deal_scores.keys():
-#             message = "Player name:{}, Deal score:{}".format(key, deal_scores.get(key))
-#             system_log.show_message(message)
-#             system_log.save_logs(message)
-#             
-#         for key in initial_cards.keys():
-#             message = "Player name:{}, Initial cards:{}, Receive cards:{}, Picked cards:{}".format(key, initial_cards.get(key), receive_cards.get(key), picked_cards.get(key))
-#             system_log.show_message(message)
-#             system_log.save_logs(message)
-# 
-#     def game_over(self, data):
-#         game_scores = self.get_game_scores(data)
-#         for key in game_scores.keys():
-#             message = "Player name:{}, Game score:{}".format(key, game_scores.get(key))
-#             system_log.show_message(message)
-#             system_log.save_logs(message)
-# 
-#     def pick_history(self, data, is_timeout, pick_his):
-#         for key in pick_his.keys():
-#             message = "Player name:{}, Pick card:{}, Is timeout:{}".format(key, pick_his.get(key), is_timeout)
-#             system_log.show_message(message)
-#             system_log.save_logs(message)

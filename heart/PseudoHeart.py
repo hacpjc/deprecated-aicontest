@@ -31,17 +31,25 @@ class PseudoHeart(Htapi):
         id = 0
         for p in player_bots:
             id += 1
-            player_tup = {'bot': p, 'name': p.get_name(), 'id': id,
-                            'hand': [], 'pick': [], 'round_pick': [], 'shoot': [], 'expose': False,
-                            'score': 0, 'score_accl': 0, 'shoot_moon': False, 'shoot_moon_accl': 0
+            player_tup = {
+                # Constant data
+                'bot': p, 'name': p.get_name(), 'id': id,
+                # Deal data
+                'hand_origin': [], 'recv3': [], 'pass3': [],
+                'hand': [], 'pick': [], 'round_pick': [], 'shoot': [], 'expose': False, 'score': 0, 'shoot_moon': False,
+                # Game data 
+                'score_game': 0,
+                # MISC data 
+                'score_accl': 0, 'shoot_moon_accl': 0
                             }
             self.player_tups.append(player_tup)
             self.htapi.msg("Add new player: " + player_tup['name'])
         
         # Decide next lead player
         self.db['next_lead_ptup'] = self.player_tups[1]
-          
-        self.game_reset()
+        
+        self.db['dealNumber'] = 0
+        self.db['gameNumber'] = 0
         
     def player_tups_rotate(self, shift=1):
         """
@@ -50,10 +58,6 @@ class PseudoHeart(Htapi):
         for i in range(shift):
             p = self.player_tups.pop(0)
             self.player_tups.append(p)
-        
-    def game_reset(self):
-        self.db['dealNumber'] = 0
-        self.db['gameNumber'] = 0
         
     def game_next_deal(self):
         self.db['dealNumber'] += 1
@@ -66,7 +70,12 @@ class PseudoHeart(Htapi):
         
         for ptup in self.player_tups:
             ptup['pick'] = []
+            
+            ptup['recv3'] = []
+            ptup['pass3'] = []
+            ptup['hand_origin'] = []
             ptup['hand'] = []
+            
             ptup['shoot'] = []
             ptup['score'] = 0
             ptup['shoot_moon'] = False
@@ -145,7 +154,34 @@ class PseudoHeart(Htapi):
         """
         End of a deal
         """
-        pass
+        data = {}
+        data['dealNumber'] = self.db['dealNumber']
+        data['roundNumber'] = self.db['roundNumber']
+        data['gameNumber'] = self.db['gameNumber']
+        
+        data['players'] = []
+        data_players = data['players']
+        
+        for ptup_this in self.player_tups:
+            # Setup this player data. 
+            pld = {}
+            
+            pld['playerNumber'] = ptup_this['id']
+            pld['playerName'] = ptup_this['name']
+            pld['dealScore'] = ptup_this['score']
+            pld['gameScore'] = ptup_this['score_game']
+            
+            pld['scoreCards'] = self.htapi.clone_cards([x.toString() for x in ptup_this['pick']])
+            pld['initialCards'] = self.htapi.clone_cards([x.toString() for x in ptup_this['hand_origin']]) 
+            pld['receivedCards'] = self.htapi.clone_cards([x.toString() for x in ptup_this['recv3']])
+            pld['pickedCards'] = self.htapi.clone_cards([x.toString() for x in ptup_this['pass3']])
+            pld['shootingTheMoon'] = ptup_this['shoot_moon']
+            
+            # Add data into list
+            data_players.append(pld)
+        
+        pbot = ptup['bot']
+        pbot.deal_end(data)
 
     def _ev_pass3cards(self, ptup):
         """
@@ -322,6 +358,7 @@ class PseudoHeart(Htapi):
             # The player get 13 cards. Generate event: 'receive_cards'
             self.htapi.arrange_cards(picked)
             ptup['hand'] = picked
+            ptup['hand_origin'] = picked
             self._ev_receive_cards(ptup)
         
     def game_pass3cards(self):
@@ -352,7 +389,9 @@ class PseudoHeart(Htapi):
                 ptup['hand'].append(c)
             self.htapi.arrange_cards(ptup['hand'])
             
-            # Then inform the player            
+            # Then inform the player
+            ptup['recv3'] = card2pass[ptup['name']]
+            ptup['pass3'] = picked[ptup['name']]         
             self._ev_receive_opponent_cards(ptup, picked[ptup['name']], card2pass[ptup['name']])
 
     def _get_player_pos(self, ptup):
@@ -590,6 +629,11 @@ class PseudoHeart(Htapi):
         """
         for ptup in self.player_tups:
             ptup['score_accl'] += ptup['score']
+            ptup['score_game'] += ptup['score']
+        
+        # Inform players
+        for ptup in self.player_tups:
+            self._ev_deal_end(ptup)
     
     def game_expose_ah(self):
         for ptup in self.player_tups:
@@ -636,7 +680,11 @@ class PseudoHeart(Htapi):
     def game_next_game(self):
         self.db['gameNumber'] += 1
         self.db['dealNumber'] = 0
-    
+                
+        for ptup in self.player_tups:
+            # Reset game-specific data
+            ptup['score_game'] = 0
+            
     def game_over(self):
         """
         playerName, gameScore
