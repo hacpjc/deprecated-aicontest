@@ -30,7 +30,6 @@ class PseudoHeart(Htapi):
         self.player_tups = []
         id = 0
         for p in player_bots:
-            id += 1
             player_tup = {
                 # Constant data
                 'bot': p, 'name': p.get_name(), 'id': id,
@@ -44,6 +43,7 @@ class PseudoHeart(Htapi):
                             }
             self.player_tups.append(player_tup)
             self.htapi.msg("Add new player: " + player_tup['name'])
+            id += 1
         
         # Decide next lead player
         self.db['next_lead_ptup'] = self.player_tups[1]
@@ -340,16 +340,48 @@ class PseudoHeart(Htapi):
         pbot = ptup['bot']
         pbot.game_over(data)
         
-    def game_new_deal(self):
+    def game_new_deal_manual_deliver(self):
         """
-        Deliver 13 cards to each player
+        Deliever fixed 13 cards to each player.
+        
+        ['7C', '2C', '2D', 'JS', 'QD', '4C', 'QC', 'QS', '3C', 'TD', '2H', '7D', 'KS', 
+        '8C', 'JD', '6D', '3D', 'KC', 'AS', '9D', '8S', 'AD', 'TS', '7H', '5D', '4H', 
+        '8H', '3H', 'AC', '8D', 'KH', 'KD', '4S', '9C', '2S', '4D', 'JH', '5C', 'JC', 
+        'AH', '9H', 'TH', '9S', '6S', '6H', '7S', 'QH', 'TC', '3S', '6C', '5H', '5S']
         """
+        card2deliver = [
+            ['7C', '2C', '2D', 'JS', 'QD', '4C', 'QC', 'QS', '3C', 'TD', '2H', '7D', 'KS'],
+            ['8C', 'JD', '6D', '3D', 'KC', 'AS', '9D', '8S', 'AH', 'TS', 'JH', '5D', 'QH'],
+            ['8H', '3H', 'AC', '8D', 'AD', 'KD', '4S', '9C', '2S', '4D', '7H', '5C', 'JC'],
+            ['KH', '9H', 'TH', '9S', '6S', '6H', '7S', '4H', 'TC', '3S', '6C', '5H', '5S']            
+            ]
+        
+        # Avoid stupid assignment error. Check if there're 52 different cards
+        tgt = []
+        card52 = self.htapi.get52cards()
+        for card13 in card2deliver:
+            card13 = [Card(x) for x in card13]
+            tgt += card13
+        
+        if len(self.htapi.find_cards(tgt, card52)) != 52:
+            self.htapi.errmsg("Invalid card2deliver table.")
+                
+        for ptup in self.player_tups:
+            if ptup['id'] >= 4: 
+                self.htapi.errmsg("Cannot allow player id >= 4")
+                
+            # Assume player id is from 0 ~ 3, so assign the cards directly.
+            ptup['hand'] = [Card(x) for x in card2deliver[ptup['id']]]
+            ptup['hand_origin'] = [Card(x) for x in card2deliver[ptup['id']]]
+                        
+    def game_new_deal_random_deliver(self):   
         unused_card = self.htapi.get52cards()
         unused_card = self.htapi.shuffle_cards(unused_card)
         
         if len(self.player_tups) != 4:
             self.htapi.errmsg("Invalid player bot num")
         
+        # Save 13 cards
         for ptup in self.player_tups:
             picked = []
             for i in range(13):
@@ -358,7 +390,21 @@ class PseudoHeart(Htapi):
             # The player get 13 cards. Generate event: 'receive_cards'
             self.htapi.arrange_cards(picked)
             ptup['hand'] = picked
-            ptup['hand_origin'] = picked
+            ptup['hand_origin'] = self.htapi.clone_cards(picked)
+
+    def game_new_deal(self):
+        """
+        Deliver 13 cards to each player
+        """             
+        manual_deliver = True
+        if manual_deliver == True:
+            self.htapi.msg(" *** WARNING: You are running in manual-deliver mode")
+            self.game_new_deal_manual_deliver()
+        else:
+            self.game_new_deal_random_deliver()
+
+        # Inform every player            
+        for ptup in self.player_tups:
             self._ev_receive_cards(ptup)
         
     def game_pass3cards(self):
@@ -718,7 +764,7 @@ def pseudo_contest():
     """
     Pseudo contest to play much more quickly than real contest mode.
     """
-    from HacBot.HacBot import HacBot
+    from HacBot.HacBot import HacBot, HacBotII
     from SampleBot.SampleBot import SampleBot
     
     #
@@ -733,7 +779,7 @@ def pseudo_contest():
     # If you feel the msg is to annoying, disable it in Htapi
     #
     mybot = HacBot('hac', is_debug=False)
-    pseudo_player1 = SampleBot('bota')
+    pseudo_player1 = HacBotII('hac2', is_debug=True)
     pseudo_player2 = SampleBot('botb')
     pseudo_player3 = SampleBot('botc')
     players = [mybot, pseudo_player1, pseudo_player2, pseudo_player3]
@@ -747,12 +793,13 @@ def pseudo_contest():
 def unitest():
     htapi = Htapi()
     allcards = htapi.get52cards()
+    random.shuffle(allcards)
     print (format(allcards))
     print (format(htapi.get_cards_by_suit(allcards, 'S')))
     print (format(htapi.find_card(allcards, Card('2H'))))
     
-    for c in allcards:
-        print(c, c.get_suit_num(), c.get_rank_num())
+#     for c in allcards:
+#         print(c, c.get_suit_num(), c.get_rank_num())
     
 
 if __name__ == "__main__":
