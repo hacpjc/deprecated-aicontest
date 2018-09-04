@@ -2,8 +2,6 @@
 
 import os, sys, json, logging, random
 
-import unicodedata
-
 class Log(object):
     def bt(self):
         try:   

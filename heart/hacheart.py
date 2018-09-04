@@ -2,9 +2,7 @@
 
 import os, sys, json
 
-from PokerBot import Card, PokerBot, SampleBot, system_log
-
-from HacBot import HacBot
+from PokerBot import Card, PokerBot, system_log
 
 from websocket import create_connection
 class PokerSocket(object):
@@ -134,6 +132,7 @@ def real_contest():
     print("Real contest mode, name: ", player_name, "num: ", player_number, "token: ", token, "url: ", connect_url)
 
     # Change this into developed bot
+    from HacBot import HacBot
     mybot = HacBot(player_name)
     
     myPokerSocket = PokerSocket(player_name, player_number, token, connect_url, mybot)
