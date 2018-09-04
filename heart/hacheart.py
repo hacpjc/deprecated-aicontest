@@ -132,7 +132,7 @@ def real_contest():
     print("Real contest mode, name: ", player_name, "num: ", player_number, "token: ", token, "url: ", connect_url)
 
     # Change this into developed bot
-    from HacBot import HacBot
+    from HacBot.HacBot import HacBot
     mybot = HacBot(player_name)
     
     myPokerSocket = PokerSocket(player_name, player_number, token, connect_url, mybot)

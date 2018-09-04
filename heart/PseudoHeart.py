@@ -670,8 +670,8 @@ def pseudo_contest():
     """
     Pseudo contest to play much more quickly than real contest mode.
     """
-    from HacBot import HacBot
-    from SampleBot import SampleBot
+    from HacBot.HacBot import HacBot
+    from SampleBot.SampleBot import SampleBot
     
     #
     # Decide game loops from argv[1]
