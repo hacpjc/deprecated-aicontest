@@ -73,19 +73,21 @@ class HacBot(PokerBot, Htapi):
         pick_suit = None
         pick_suit_num = 0
         for suit in suit_list:
-            this_suit_num = self.htapi.calc_card_num_by_suit(my_hand_cards, pick_suit)
+            this_suit_num = self.htapi.calc_card_num_by_suit(my_hand_cards, suit)
+            
+            if this_suit_num == 0:
+                continue
             
             if pick_suit_num == 0:
                 pick_suit_num = this_suit_num
                 pick_suit = suit
-            elif this_suit_num != 0 and this_suit_num < pick_suit_num:
+            elif this_suit_num < pick_suit_num:
                 pick_suit_num = this_suit_num
                 pick_suit = suit
 
         # Remove the most large card in the target suit        
         candidate_list = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
         self.htapi.arrange_cards(candidate_list)
-        print (candidate_list)
         card = candidate_list.pop()
         
         return self.htapi.remove_card(my_hand_cards, card)
@@ -146,8 +148,6 @@ class HacBot(PokerBot, Htapi):
         """
         Check if somebody expose AH. Damn. 
         """
-        print ('expose: ' + format(data))
-        
         data_players = data['players']
         
         for dp in data_players:
@@ -155,7 +155,6 @@ class HacBot(PokerBot, Htapi):
             
             if len(dp['exposedCards']) > 0:
                 # This guy exposed AH. 
-                self.htapi.msg("Player " + dp['playerName'] + " exposed card: " + format(dp['exposedCards']))
                 local_player['expose'] = True
             else:
                 local_player['expose'] = False

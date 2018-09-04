@@ -24,7 +24,7 @@ class PseudoHeart(Htapi):
             sys.exit()
     
         self.db = {}  
-        self.htapi = Htapi()
+        self.htapi = Htapi(is_debug=True)
         self.game_heart_cards = self.htapi.get_cards_by_suit(self.htapi.get52cards(), 'H')
         
         # Save bot object into self.player_bots 
@@ -37,7 +37,7 @@ class PseudoHeart(Htapi):
                             'score': 0, 'score_accl': 0, 'shoot_moon': False,
                             }
             self.player_tups.append(player_tup)
-            print ("...Add new player: " + player_tup['name'])
+            self.htapi.msg("Add new player: " + player_tup['name'])
         
         # Decide next lead player
         self.db['next_lead_ptup'] = self.player_tups[1]
@@ -156,8 +156,6 @@ class PseudoHeart(Htapi):
         data['self'] = {
             'cards': self.htapi.clone_cards([x.toString() for x in ptup['hand']])
             }
-        
-        print(data)
         
         pbot = ptup['bot']
         picked = pbot.pass_cards(data)
@@ -326,7 +324,6 @@ class PseudoHeart(Htapi):
             self.htapi.arrange_cards(picked)
             ptup['hand'] = picked
             self._ev_receive_cards(ptup)
-            self.msg("Deliver cards to " + ptup['name'], format(ptup['hand']))
         
     def game_pass3cards(self):
         """
@@ -358,7 +355,6 @@ class PseudoHeart(Htapi):
             
             # Then inform the player            
             self._ev_receive_opponent_cards(ptup, picked[ptup['name']], card2pass[ptup['name']])
-            self.msg("Pass 3 cards to player " + ptup['name'], format(card2pass[ptup['name']]))
 
     def _get_player_pos(self, ptup):
         """
@@ -456,7 +452,7 @@ class PseudoHeart(Htapi):
         if self.htapi.find_card(ptup['hand'], card2shoot) == None:
             self.errmsg("Cannot shoot un-existed card at player: " + ptup['name'])
             
-        print ("Player " + ptup['name'] + " shoots: ", card2shoot, self.db['unusedCards'], ptup['hand'])
+#         print ("Player " + ptup['name'] + " shoots: ", card2shoot, ", hand: ", ptup['hand'], self.db['unusedCards'])
         
         # Shoot the card.
         removed = self.htapi.remove_card(ptup['hand'], card2shoot)
@@ -481,7 +477,7 @@ class PseudoHeart(Htapi):
         """
         score = 0
         picked_cards = ptup['pick']
-        
+ 
         my_score_cards = self.htapi.find_cards(picked_cards, self.game_score_cards)
         my_heart_cards = self.htapi.find_cards(picked_cards, self.game_heart_cards)
         my_penalty_cards = self.htapi.find_cards(picked_cards, self.game_penalty_cards)
@@ -503,6 +499,9 @@ class PseudoHeart(Htapi):
             score *= 4
             ptup['shoot_moon'] = True
                 
+                
+        self.htapi.dbg("Player: ", ptup['name'], ", pick: ", format(picked_cards), ", score: ", str(score))
+       
         ptup['score'] = score
         
     def game_round_end(self, round_num):
@@ -538,7 +537,6 @@ class PseudoHeart(Htapi):
                     next_lead_ptup = ptup
                     rotate = idx
                     highest_rank = shoot_card_rank
-                    print ("player " + ptup['name'] + " is temporarily win.")
                     
             idx += 1
         
@@ -560,14 +558,19 @@ class PseudoHeart(Htapi):
         """
         for ptup in self.player_tups:
             self._ev_round_end(ptup)
-            
+    
+    def show_score(self):
+        for ptup in self.player_tups:
+            self.htapi.dbg("Player: " + ptup['name'] + ", score: " + str(ptup['score']) + ", score_accl: " + str(ptup['score_accl']))
        
     def game_round(self, round_num):
         """
         Play 1 round = 4 turn
         """
-        print("")
-        print("Round: " + str(round_num))
+        self.htapi.dbg("Round: " + str(self.db['roundNumber']) + 
+                       ", Deal: " + str(self.db['dealNumber']) + 
+                       ", Game: " + str(self.db['gameNumber']))
+        
         for ptup in self.player_tups:
             self.game_shoot1card(ptup)
             
@@ -590,7 +593,6 @@ class PseudoHeart(Htapi):
                     # The player decides to expose, all heart score will double 
                     ptup['expose'] = True
                     self.db['expose'] = True   
-                    self.htapi.msg("Player " + ptup['name'] + " exposed AH")             
                 break
         
         # Inform players expose end.
@@ -654,27 +656,29 @@ class PseudoHeart(Htapi):
     def game_loop(self, loop_max=1):
         for loop in range(1, loop_max + 1):
             self.game_single()
+            self.show_score()
 
 def pseudo_contest():
     """
     Pseudo contest to play much more quickly than real contest mode.
     """
+    from PokerBot import SampleBot
     mybot = HacBot('hac')
-    pseudo_player1 = HacBot('bota')
-    pseudo_player2 = HacBot('botb')
-    pseudo_player3 = HacBot('botc')
+    pseudo_player1 = SampleBot('bota')
+    pseudo_player2 = SampleBot('botb')
+    pseudo_player3 = SampleBot('botc')
     players = [mybot, pseudo_player1, pseudo_player2, pseudo_player3]
     
     hgame = PseudoHeart(players)
     
-    hgame.game_loop(loop_max = 1)
+    hgame.game_loop(loop_max = 60)
 
 def unitest():
     htapi = Htapi()
     allcards = htapi.get52cards()
-#     print (format(allcards))
-#     print (format(htapi.get_cards_by_suit(allcards, 'S')))
-#     print (format(htapi.find_card(allcards, Card('2H'))))
+    print (format(allcards))
+    print (format(htapi.get_cards_by_suit(allcards, 'S')))
+    print (format(htapi.find_card(allcards, Card('2H'))))
     
     for c in allcards:
         print(c, c.get_suit_num(), c.get_rank_num())

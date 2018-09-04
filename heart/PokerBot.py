@@ -292,10 +292,14 @@ class PokerBot(object):
             return None
 
 class Htapi():
-    
-    def __init__(self):
+    def __init__(self, is_debug=False):
         from uptime import uptime
         random.seed(int(uptime()))
+        
+        if is_debug == True:
+            self.is_debug = True
+        else:
+            self.is_debug = False
 
     def logdict(self, dict):
         """
@@ -307,9 +311,14 @@ class Htapi():
 
     # Debug tool - Print a list of string(s)
     def msg(self, *argv):
-        sys.stdout.write("...")
         sys.stdout.write("".join(list(argv)) + "\n")
         sys.stdout.flush()
+        
+    def dbg(self, *argv):
+        if self.is_debug == True:
+            sys.stdout.write("...")
+            sys.stdout.write("".join(list(argv)) + "\n")
+            sys.stdout.flush()
 
     def errmsg(self, *argv):
         sys.stderr.write(" *** ERROR: ")
