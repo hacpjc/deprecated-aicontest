@@ -792,6 +792,7 @@ def pseudo_contest():
     """
     from HacBot.HacBot import HacBot
     from SampleBot.SampleBot import SampleBot
+#     from SelmonBot.selmon_bot import MCTSBot
     
     #
     # Decide game loops from argv[1]

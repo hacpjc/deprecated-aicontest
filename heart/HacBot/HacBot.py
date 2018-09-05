@@ -4,6 +4,13 @@ from PokerBot import PokerBot, system_log, Card, Htapi
 class HacBot(PokerBot, Htapi):
     """
     Hac's policy-based bot.
+    
+    This is the most stupid version which cannot shoot moon, but this is smart enough to avoid taking tricks.
+    The grades of 50 games:
+    ...Player: hac, score: -4, score_accl: -3835, shoot_moon_accl: 1
+    ...Player: bota, score: 0, score_accl: -12501, shoot_moon_accl: 2
+    ...Player: botb, score: -33, score_accl: -11415, shoot_moon_accl: 2
+    ...Player: botc, score: -2, score_accl: -11538, shoot_moon_accl: 3
     """
     def __init__(self, name, is_debug=False):
         super(HacBot, self).__init__(name)
@@ -319,20 +326,21 @@ class HacBot(PokerBot, Htapi):
             """
             Have the same suit. Choose a smaller card to avoid the trick.
             """
-            return self.__pick_smaller_card(my_avail_cards, round_cards)
+            filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+            return self.__pick_smaller_card(my_avail_cards, filtered_round_cards)
         else:
             """
             I don't have the same suit. Git rid of 'QS'. 
             """
-            qs = self.htapi.find_card(my_avail_cards, Card('QS')) 
-            if qs != None:
-                return qs
+            cardqs = self.htapi.find_card(my_avail_cards, Card('QS')) 
+            if cardqs != None:
+                return cardqs
             
             """
             I don't have the same suit. Throw dangerous high rank cards. 
             """
             high_card = self.__pick_big_card(my_avail_cards)
-            if high_card.get_rank_num() >= Card('QS').get_rank_num():
+            if high_card.get_rank_num() >= Card('JS').get_rank_num():
                 return high_card
             
             """
@@ -385,17 +393,10 @@ class HacBot(PokerBot, Htapi):
         round_players = data['roundPlayers']
         
         # Identify my position in this round
-        my_pos = 0
-        for idx in range(0, len(round_players)):
-            if self.get_name() == round_players[idx]:
-                my_pos = idx
-                break        
+        my_pos = round_players.index(self.get_name())
 
         # Get players in next turn.
-        self.stat['nextPlayers'] = []
-        if my_pos < 3:
-            for idx in range(my_pos + 1, len(round_players)):
-                self.stat['nextPlayers'].append(round_players[idx])
+        self.stat['nextPlayers'] = data['roundPlayers'][my_pos:]
             
         if my_pos == 0:
             card = self.__leadplay(data)            
@@ -520,4 +521,4 @@ class HacBot(PokerBot, Htapi):
         """
         Event: game end
         """
-        pass
+        self.htapi.dbg(format(data))
