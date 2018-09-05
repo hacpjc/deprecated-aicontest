@@ -316,6 +316,9 @@ class Htapi():
             self.is_debug = False
             
         self.game_heart_cards = self.get_cards_by_suit(self.get52cards(), 'H')
+        
+        all52cards = self.htapi.get52cards()
+        self.game_no_penalty_cards = self.htapi.filter_out_cards(all52cards, self.game_penalty_cards)
 
     def logdict(self, dict):
         """
@@ -402,6 +405,29 @@ class Htapi():
                     found.append(c)
         
         return found
+    
+    def find_penalty_cards(self, cards_in):
+        """
+        NOTE: TC is not a penalty card.
+        """
+        return self.find_cards(cards_in, self.game_penalty_cards)
+
+    def find_no_penalty_card(self, cards_in):
+        """
+        NOTE: TC is also no penalty card
+        """
+        return self.find_cards(cards_in, self.game_no_penalty_cards)
+    
+    def filter_out_cards(self, cards_in, filter_cards):
+        """
+        Return the cards not in the tgt
+        """
+        output = []
+        for c in cards_in:
+            if filter_cards.count(c) == 0:
+                output.append(c)
+                
+        return output
 
     def remove_card(self, cards_in, card2rm):
         """
@@ -482,6 +508,23 @@ class Htapi():
                 small_card_rank_num = c.get_rank_num(c)
             
         return small_card
+    
+    def pick_bigger_card(self, card_list, card_list2cmp):
+        """
+        Pick a bigger card (but not biggest)
+        """
+        candidate = []
+        
+        for c2cmp in card_list2cmp:
+            for c in card_list:
+                if c.get_rank_num > c2cmp.get_rank_num():
+                    candidate.append(c)
+        
+        if len(candidate) > 0:
+            candidate = self.arrange_cards(candidate)
+            return candidate.pop(0)
+        else:
+            return None
     
     def pick_smaller_card(self, card_list, card_list2cmp, auto_choose_big=False):
         """
