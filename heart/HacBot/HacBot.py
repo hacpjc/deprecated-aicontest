@@ -199,41 +199,21 @@ class HacBot(PokerBot, Htapi):
         """
         Pick the smallest card in list 
         """
-        small_card = card_list[0]
-        small_card_rank_num = small_card.get_rank_num()
-        for c in card_list:
-            if c.get_rank_num() < small_card_rank_num:
-                small_card = c
-                small_card_rank_num = c.get_rank_num(c)
-            
-        return small_card
+        return self.htapi.pick_small_card(card_list) 
     
     def __pick_smaller_card(self, card_list, card_list2cmp):
         """
         Pick a smaller card (but not smallest)
         """
-        candidate = []
+        smaller_card = self.htapi.pick_smaller_card(card_list, card_list2cmp)
         
-        for c2cmp in card_list2cmp:
-            for c in card_list:
-                if c.get_rank_num() < c2cmp.get_rank_num():
-                    candidate.append(c)
-        
-        if len(candidate) > 0:
-            return candidate.pop()
+        if smaller_card == None:
+            return self.htapi.pick_big_card(card_list)
         else:
-            # Don't have any smaller card. Give up and pick the biggest one instead.
-            return self.__pick_big_card(card_list)
+            return smaller_card
     
     def __pick_big_card(self, card_list):
-        big_card = card_list[0]
-        big_card_rank = big_card.get_rank_num()
-        for c in card_list:
-            if c.get_rank_num() > big_card_rank:
-                big_card = c
-                big_card_rank = c.get_rank_num()
-        
-        return big_card
+        return self.htapi.pick_big_card(card_list)
     
     def _monte_carlo_predict(self, card2shoot, opponent_cards, round_cards=[]):
         """
