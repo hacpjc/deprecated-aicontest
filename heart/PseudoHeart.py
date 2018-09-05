@@ -280,15 +280,28 @@ class PseudoHeart(Htapi):
         pbot = ptup['bot']
         pbot.turn_end(data)
 
-    def _ev_round_end(self, ptup):
+    def _ev_round_end(self, ptup, next_lead_ptup):
         """
         Inform the user the end of a round
         """
-        data = {'roundPlayers': []}
-        data_round_players = data['roundPlayers']
+        data = {'roundPlayers': [], 'roundPlayer': next_lead_ptup['name'], 'players': []}
         
+        data_round_players = data['roundPlayers']
         for ptup_this in self.player_tups:
             data_round_players.append(ptup_this['name'])
+        
+        data_players = data['players']    
+        for ptup_this in self.player_tups:
+            dp = {}
+            
+            dp['playerNumber'] = ptup_this['id']
+            dp['playerName'] = ptup_this['name']
+            dp['gameScore'] = ptup_this['score_game']
+            dp['dealScore'] = ptup_this['score']
+            dp['shootingTheMoon'] = ptup_this['shoot_moon']
+            dp['roundCard'] = ptup_this['shoot'][-1].toString()
+            
+            data_players.append(dp)
         
         pbot = ptup['bot']
         pbot.round_end(data)  
@@ -350,8 +363,8 @@ class PseudoHeart(Htapi):
         'AH', '9H', 'TH', '9S', '6S', '6H', '7S', 'QH', 'TC', '3S', '6C', '5H', '5S']
         """
         card2deliver = [
-            ['7C', '2C', '2D', 'JS', 'QD', '4C', 'QC', 'QS', '3C', 'TD', '2H', '7D', 'KS'],
             ['8C', 'JD', '6D', '3D', 'KC', 'AS', '9D', '8S', 'AH', 'TS', 'JH', '5D', 'QH'],
+            ['7C', '2C', '2D', 'JS', 'QD', '4C', 'QC', 'QS', '3C', 'TD', '2H', '7D', 'KS'],
             ['8H', '3H', 'AC', '8D', 'AD', 'KD', '4S', '9C', '2S', '4D', '7H', '5C', 'JC'],
             ['KH', '9H', 'TH', '9S', '6S', '6H', '7S', '4H', 'TC', '3S', '6C', '5H', '5S']            
             ]
@@ -396,7 +409,7 @@ class PseudoHeart(Htapi):
         """
         Deliver 13 cards to each player
         """             
-        manual_deliver = True
+        manual_deliver = False
         if manual_deliver == True:
             self.htapi.msg(" *** WARNING: You are running in manual-deliver mode")
             self.game_new_deal_manual_deliver()
@@ -625,28 +638,25 @@ class PseudoHeart(Htapi):
         next_lead_ptup['pick'] += round_cards
         next_lead_ptup['round_pick'] = round_cards
         
-        if rotate > 0:
-            self.player_tups_rotate(rotate)
-        
         """
         Calculate scores of this round and store the result.
         """
         for ptup in self.player_tups:
             self._recalculate_round_score(ptup)
-            
-        """
-        Check if somebody shoot moon
-        """
-        for ptup in self.player_tups:
-            if ptup['shoot_moon'] == True:
-                ptup['shoot_moon_accl'] += 1                
+             
         
         """
         Inform the user an event
         """
         for ptup in self.player_tups:
-            self._ev_round_end(ptup)
-    
+            self._ev_round_end(ptup, next_lead_ptup)
+        
+        """
+        Rotate ptup position for next round.
+        """
+        if rotate > 0:
+            self.player_tups_rotate(rotate)
+            
     def show_score(self):
         for ptup in self.player_tups:
             self.htapi.dbg(
@@ -671,12 +681,14 @@ class PseudoHeart(Htapi):
 
     def game_finish_deal(self):
         """
-        The end of a single game.
+        The end of a single deal.
         """
         for ptup in self.player_tups:
             ptup['score_accl'] += ptup['score']
             ptup['score_game'] += ptup['score']
-        
+            if ptup['shoot_moon'] == True:
+                ptup['shoot_moon_accl'] += 1   
+            
         # Inform players
         for ptup in self.player_tups:
             self._ev_deal_end(ptup)
@@ -764,7 +776,7 @@ def pseudo_contest():
     """
     Pseudo contest to play much more quickly than real contest mode.
     """
-    from HacBot.HacBot import HacBot, HacBotII
+    from HacBot.HacBot import HacBot
     from SampleBot.SampleBot import SampleBot
     
     #
@@ -778,8 +790,8 @@ def pseudo_contest():
     #
     # If you feel the msg is to annoying, disable it in Htapi
     #
-    mybot = HacBot('hac', is_debug=False)
-    pseudo_player1 = HacBotII('hac2', is_debug=True)
+    mybot = HacBot('hac', is_debug=True)
+    pseudo_player1 = SampleBot('bota')
     pseudo_player2 = SampleBot('botb')
     pseudo_player3 = SampleBot('botc')
     players = [mybot, pseudo_player1, pseudo_player2, pseudo_player3]

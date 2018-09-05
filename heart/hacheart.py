@@ -124,7 +124,7 @@ def real_contest():
         token = sys.argv[3]
         connect_url = sys.argv[4]
     else:
-        player_name = "Sample Bot"
+        player_name = "hac"
         player_number = 99
         token = "12345678"
         connect_url = "ws://localhost:8080/"

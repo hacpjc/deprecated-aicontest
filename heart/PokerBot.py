@@ -295,6 +295,17 @@ class PokerBot(object):
             return None
 
 class Htapi():
+    
+    game_score_cards = [Card("QS"), Card("TC"),
+        Card("2H"), Card("3H"), Card("4H"), Card("5H"), Card("6H"), 
+        Card("7H"), Card("8H"), Card("9H"), Card("TH"), Card("JH"), 
+        Card("QH"), Card("KH"), Card("AH")]
+    
+    game_penalty_cards = [Card("QS"),
+                        Card("2H"), Card("3H"), Card("4H"), Card("5H"), Card("6H"), 
+                        Card("7H"), Card("8H"), Card("9H"), Card("TH"), Card("JH"), 
+                        Card("QH"), Card("KH"), Card("AH")]
+        
     def __init__(self, is_debug=False):
         from uptime import uptime
         random.seed(int(uptime()))
@@ -303,6 +314,8 @@ class Htapi():
             self.is_debug = True
         else:
             self.is_debug = False
+            
+        self.game_heart_cards = self.get_cards_by_suit(self.get52cards(), 'H')
 
     def logdict(self, dict):
         """
@@ -427,3 +440,32 @@ class Htapi():
     def clone_cards(self, cards):
         output = cards[:]
         return output
+    
+    def calc_score(self, cards, is_expose_ah=False):
+        """
+        Calculate the score/penalty of the cards
+        """
+        score = 0
+        picked_cards = cards
+ 
+        my_score_cards = self.find_cards(picked_cards, self.game_score_cards)
+        my_heart_cards = self.find_cards(picked_cards, self.game_heart_cards)
+        my_penalty_cards = self.find_cards(picked_cards, self.game_penalty_cards)
+        
+        if is_expose_ah == True:
+            score = len(my_heart_cards) * 2 * (-1)
+        else:
+            score = len(my_heart_cards) * (-1)
+        
+        if self.find_card(my_score_cards, Card('QS')) != None:
+            score += -13
+            
+        if self.find_card(my_score_cards, Card('TC')) != None:
+            score *= 2
+            
+        if len(self.find_cards(my_score_cards, my_penalty_cards)) == len(self.game_penalty_cards):
+            # Shoot the moon. Score becomes postive! Score x 4! 
+            score *= -1
+            score *= 4
+        
+        return score
