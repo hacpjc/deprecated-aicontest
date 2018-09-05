@@ -791,6 +791,7 @@ def pseudo_contest():
     Pseudo contest to play much more quickly than real contest mode.
     """
     from HacBot.HacBot import HacBot
+    from HacBot.HacBotII import HacBotII
     from SampleBot.SampleBot import SampleBot
 #     from SelmonBot.selmon_bot import MCTSBot
     
@@ -805,10 +806,10 @@ def pseudo_contest():
     #
     # If you feel the msg is to annoying, disable it in Htapi
     #
-    mybot = HacBot('hac', is_debug=False)
-    pseudo_player1 = SampleBot('bota')
-    pseudo_player2 = SampleBot('botb')
-    pseudo_player3 = SampleBot('botc')
+    mybot = HacBotII('hac2', is_debug=True)
+    pseudo_player1 = HacBot('hac1-a')
+    pseudo_player2 = HacBot('hac1-b')
+    pseudo_player3 = HacBot('hac1-c')
     players = [mybot, pseudo_player1, pseudo_player2, pseudo_player3]
 
     #    
