@@ -64,6 +64,7 @@ class PseudoHeart(Htapi):
         self.db['usedCards'] = []
         
         self.db['roundNumber'] = 0
+        self.db['is_first_play'] = True
         
         for ptup in self.player_tups:
             ptup['pick'] = []
@@ -465,9 +466,15 @@ class PseudoHeart(Htapi):
         """
         Help players to find candidate cards.
         """
+        
+        if self.db['is_first_play'] == True:
+            self.db['is_first_play'] = False
+            candidates = [Card('2C')]
+            return candidates
+        
         player_pos = self._get_player_pos(ptup)
 
-        if player_pos == 1:
+        if player_pos == 1:           
             if self.db['heartBreak'] == True:
                 # Can select any card after heart break.
                 candidates = ptup['hand']
