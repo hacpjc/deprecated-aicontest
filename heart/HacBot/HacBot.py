@@ -512,6 +512,7 @@ class HacBot(PokerBot, Htapi):
             p['score'] = 0
             p['shoot'] = []
             p['expose'] = False
+            p['pick'] = []
         
         self.stat['usedCard'] = []
     
