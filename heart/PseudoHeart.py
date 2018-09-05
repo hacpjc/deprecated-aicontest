@@ -45,9 +45,6 @@ class PseudoHeart(Htapi):
             self.htapi.msg("Add new player: " + player_tup['name'])
             id += 1
         
-        # Decide next lead player
-        self.db['next_lead_ptup'] = self.player_tups[1]
-        
         self.db['dealNumber'] = 0
         self.db['gameNumber'] = 0
         
@@ -80,18 +77,13 @@ class PseudoHeart(Htapi):
             ptup['score'] = 0
             ptup['shoot_moon'] = False
             
-        # Re-arrange position
-        next_lead_ptup = self.db['next_lead_ptup']
+        # Re-arrange position to default layout
         for i in range(0, 4):
             ctup = self.player_tups[0]
-            if ctup['name'] == next_lead_ptup['name']:
-                # The player's at position 0, so he will be the lead player.
+            if ctup['id'] == 0:
                 break
             else:
                 self.player_tups_rotate(1)
-            
-        #  Now decide the next lead player
-        self.db['next_lead_ptup'] = self.player_tups[1]
         
     def game_next_round(self):
         self.db['roundNumber'] += 1
@@ -708,7 +700,20 @@ class PseudoHeart(Htapi):
         # Inform players expose end.
         for ptup in self.player_tups:
             self._ev_expose_ah_end(ptup)
-        
+    
+    def game_decide_lead_player(self):
+        """
+        Decide who must start the deal, i.e. the player has 2C.
+        """        
+        for i in range(0, 4):
+            ptup = self.player_tups[0]
+            
+            card2c = self.htapi.find_card(ptup['hand'], Card('2C'))
+            if card2c != None:
+                break
+            else:
+                self.player_tups_rotate(1)
+    
     def game_play1deal(self):
         """
         event: new_deal
@@ -719,6 +724,8 @@ class PseudoHeart(Htapi):
         event: receive_opponent_cards & pass_cards
         """
         self.game_pass3cards()
+        
+        self.game_decide_lead_player()
         
         """
         event: Ask if the player wants to expose AH
