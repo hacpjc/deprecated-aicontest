@@ -805,7 +805,7 @@ def pseudo_contest():
     #
     # If you feel the msg is to annoying, disable it in Htapi
     #
-    mybot = HacBot('hac', is_debug=True)
+    mybot = HacBot('hac', is_debug=False)
     pseudo_player1 = SampleBot('bota')
     pseudo_player2 = SampleBot('botb')
     pseudo_player3 = SampleBot('botc')

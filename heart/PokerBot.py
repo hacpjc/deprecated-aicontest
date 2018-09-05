@@ -483,7 +483,7 @@ class Htapi():
             
         return small_card
     
-    def pick_smaller_card(self, card_list, card_list2cmp):
+    def pick_smaller_card(self, card_list, card_list2cmp, auto_choose_big=False):
         """
         Pick a smaller card (but not smallest)
         """
@@ -498,7 +498,11 @@ class Htapi():
             candidate = self.arrange_cards(candidate)
             return candidate.pop()
         else:
-            return None
+            if auto_choose_big == True:
+                # Select the biggest one if there's no smaller card.
+                return self.pick_big_card(card_list)
+            else:
+                return None
         
         return None
     

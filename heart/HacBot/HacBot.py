@@ -41,7 +41,7 @@ class HacBot(PokerBot, Htapi):
         """
         Configure player table by input data.
         """
-        self.htapi.msg("Rebuild players: ", format(data))
+        self.htapi.dbg("Rebuild players: ", format(data))
         
         data_players = data['players']
         
@@ -194,27 +194,7 @@ class HacBot(PokerBot, Htapi):
                 local_player['expose'] = True
             else:
                 local_player['expose'] = False
-    
-    def __pick_small_card(self, card_list):
-        """
-        Pick the smallest card in list 
-        """
-        return self.htapi.pick_small_card(card_list) 
-    
-    def __pick_smaller_card(self, card_list, card_list2cmp):
-        """
-        Pick a smaller card (but not smallest)
-        """
-        smaller_card = self.htapi.pick_smaller_card(card_list, card_list2cmp)
-        
-        if smaller_card == None:
-            return self.htapi.pick_big_card(card_list)
-        else:
-            return smaller_card
-    
-    def __pick_big_card(self, card_list):
-        return self.htapi.pick_big_card(card_list)
-    
+
     def _monte_carlo_predict(self, card2shoot, opponent_cards, round_cards=[]):
         """
         Will I take the trick if I select the card2shoot!?
@@ -307,7 +287,7 @@ class HacBot(PokerBot, Htapi):
             Have the same suit. Choose a smaller card to avoid the trick.
             """
             filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
-            return self.__pick_smaller_card(my_avail_cards, filtered_round_cards)
+            return self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=True)
         else:
             """
             I don't have the same suit. Git rid of 'QS'. 
@@ -319,7 +299,7 @@ class HacBot(PokerBot, Htapi):
             """
             I don't have the same suit. Throw dangerous high rank cards. 
             """
-            high_card = self.__pick_big_card(my_avail_cards)
+            high_card = self.htapi.pick_big_card(my_avail_cards)
             if high_card.get_rank_num() >= Card('JS').get_rank_num():
                 return high_card
             
@@ -356,9 +336,9 @@ class HacBot(PokerBot, Htapi):
             If there's a point, try to avoid.
             """
             if score_card_num == 0:
-                return self.__pick_big_card(my_avail_cards)
+                return self.htapi.pick_big_card(my_avail_cards)
             else:
-                return self.__pick_smaller_card(my_avail_cards, round_cards)
+                return self.htapi.pick_smaller_card(my_avail_cards, round_cards, auto_choose_big=True)
         else:
             """
             Don't have the same suit. Play the trick.
@@ -478,8 +458,7 @@ class HacBot(PokerBot, Htapi):
         """
         data_players = data['players']
         
-        print ("...deal end")
-        print (data)
+        self.htapi.dbg(format(data))
         
         for player in data_players:
             local_player = self.players[player['playerName']]
