@@ -196,9 +196,11 @@ class HacBotII(PokerBot, Htapi):
             else:
                 local_player['expose'] = False
 
-    def _monte_carlo_predict(self, card2shoot, opponent_cards, round_cards=[]):
+    def _lead_play_monte_carlo_predict_penalty(self, card2shoot, opponent_cards, round_cards=[]):
         """
         Will I take the trick if I select the card2shoot!?
+        
+        Output: The possibility to get score if I shoot the card: 0 ~ 100.0
         """
 
         # TODO: Improve prediction by the players!
@@ -208,16 +210,23 @@ class HacBotII(PokerBot, Htapi):
         # Calculate the number of cards will... make me eat the trick.
         opponent_same_suit_cards = self.htapi.get_cards_by_suit(opponent_cards, card2shoot.get_suit())
         if len(opponent_same_suit_cards) == 0:
-            return 100.0
+            opponent_score_cards = self.htapi.find_score_cards(opponent_cards)
+            if len(opponent_score_cards) > 0:
+                return 100.0
+            else:
+                # There's no penalty card now. Won't eat 
+                return 0.0                
         
+        # Danger level means the chance I will eat a trick. 
+        # If the card2shoot is high-rank, the chance is higher, of course.
         danger_level = 0
         for ocard in opponent_same_suit_cards:
             if ocard.get_rank_num() < card2shoot.get_rank_num():
                 # Oops...
                 danger_level += 1
         
-        max = float(len(opponent_same_suit_cards))
-        percentage = danger_level / max
+        percentage_max = float(len(opponent_same_suit_cards))
+        percentage = danger_level / percentage_max
         return percentage
     
     def _get_unused_cards_by_suits(self, my_cards, suits=[]):
@@ -254,7 +263,7 @@ class HacBotII(PokerBot, Htapi):
         peak_percentage = 0
         for c in my_avail_cards:
             # If I pick this card, will I take the trick?            
-            percentage = self._monte_carlo_predict(c, opponent_cards, round_cards=[])
+            percentage = self._lead_play_monte_carlo_predict_penalty(c, opponent_cards, round_cards=[])
             
             if len(selected) == 0:
                 peak_percentage = percentage
@@ -388,9 +397,7 @@ class HacBotII(PokerBot, Htapi):
         """
         if self.stat['shoot_moon_mode'] == False:
             # I know it's unlikely to shoot the moon... Give up
-            return False
-        
-        me = self.players[self.get_name()]
+            return 0.0
         
         # Detect factors: all played turn cards, hand_card
         my_hand_cards = self.stat['hand']
@@ -398,18 +405,91 @@ class HacBotII(PokerBot, Htapi):
         
         opponent_unused_cards = self._get_unused_cards_by_suits(my_hand_cards)
         opponent_unused_penalty_cards = self.htapi.find_penalty_cards(opponent_unused_cards)
-
-        self.dbg("hand: " + format(my_hand_cards))
-        self.dbg("oppo unused penalty: " + format(opponent_unused_penalty_cards))
-        self.dbg("used: " + format(all_used_cards))
-
-        return True
+        
+        left_turn_num = float(len(my_hand_cards))
+        
+        """
+        The prediction is simple, calculate how many turns I can win.
+        """
+        win_count = 0
+        for c in my_hand_cards:
+            unused_same_suit_cards = self.htapi.get_cards_by_suit(opponent_unused_cards, c.get_suit())
+            if len(unused_same_suit_cards) > 0:
+                self.htapi.arrange_cards(unused_same_suit_cards)
+                
+                if c.get_rank_num() > unused_same_suit_cards[-1].get_rank_num():
+                    win_count += 1
+        
+        return win_count / left_turn_num
       
+    
     def __leadplay_shoot_moon_mode(self, data):
         """
         I am the lead player. Try to eat heart and QS!
-        """
         
+        Make sure I have the a card that can win a score. 
+        If I don't have, I will fail to shoot. Try Monte Carlo simulation.
+        """
+        my_hand_cards = self.stat['hand']
+        
+        my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
+        all_used_cards = self.stat['usedCard']
+        opponent_cards = self._get_unused_cards_by_suits(my_hand_cards)
+        
+        #
+        # Shoot the card that nobody has the same suit.
+        #
+        for c in my_avail_cards:
+            my_same_suit_card_num = self.htapi.get_cards_by_suit(my_avail_cards, c.get_suit())
+            used_same_suit_card_num = self.htapi.get_cards_by_suit(all_used_cards, c.get_suit())
+            
+            if my_same_suit_card_num + used_same_suit_card_num == 13:
+                self.htapi.dbg("Select nobody have suit to play the trick.")
+                return c
+        
+        #
+        # Heart eater.
+        #
+        my_heart_cards = self.htapi.get_cards_by_suit(my_avail_cards, 'H')
+        if len(my_heart_cards) > 0:
+            unused_heart_cards = self.htapi.get_cards_by_suit(opponent_cards, 'H')
+            if len(unused_heart_cards) > 0:
+                self.htapi.arrange_cards(unused_heart_cards)
+            
+                for c in my_heart_cards:
+                    if c.get_rank_num() > unused_heart_cards[-1].get_rank_num():
+                        return c      
+        
+        #        
+        # Shoot the card that I will win the round.
+        #
+        for c in my_avail_cards:
+            unused_same_suit_cards = self.htapi.get_cards_by_suit(opponent_cards, c.get_suit())
+            if len(unused_same_suit_cards) > 0:
+                self.htapi.arrange_cards(unused_same_suit_cards)
+                
+                if c.get_rank_num() > unused_same_suit_cards[-1].get_rank_num():
+                    return c
+            
+        #
+        # If I don't have cards can win, ...shoot no score suit left a lot.
+        #
+        pick_suit = None
+        pick_suit_num = 0
+        for c in my_avail_cards:
+            unused_same_suit_cards = self.htapi.get_cards_by_suit(opponent_cards, c.get_suit())
+            
+            if pick_suit_num == 0:
+                pick_suit_num = len(unused_same_suit_cards)
+                pick_suit = c.get_suit()
+            elif  len(unused_same_suit_cards) > pick_suit_num:
+                pick_suit_num = len(unused_same_suit_cards)
+                pick_suit = c.get_suit()
+                
+        candidates = self.htapi.get_cards_by_suit(my_avail_cards, pick_suit)
+        self.htapi.arrange_cards(candidates)
+        
+        return candidates[-1] 
     
     def __midplay_shoot_moon_mode(self, data):
         """
@@ -418,11 +498,7 @@ class HacBotII(PokerBot, Htapi):
         
         TBD: Use Monte Carlo simulation here?
         """
-        my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
-        
-        round_cards = self.stat['roundCard']
-        
-        
+        return self.__leadplay_shoot_moon_mode(data)
     
     def __lastplay_shoot_moon_mode(self, data):
         """
@@ -433,18 +509,43 @@ class HacBotII(PokerBot, Htapi):
         
         round_cards = self.stat['roundCard']
         lead_card = round_cards[0]
-        if self.htai.calc_card_num_by_suit(my_avail_cards, lead_card.get_suit()) == 0:
+        if self.htapi.calc_card_num_by_suit(my_avail_cards, lead_card.get_suit()) == 0:
             """
             I don't have the same suit. Pick a no-score small card :-)
             """
-#             candidates = self.htapi.get_cards_by_suits(my_avail_cards, '')
-            self.htai.errmsg("FIXME")            
+            candidates = self.htapi.find_no_penalty_cards(my_avail_cards)
+            if len(candidates) == 0:
+                # Sorry, don't have no penalty card. The shoot-moon action will fail.
+                return self.pick_card_anti_score_mode(data)                
+            
+            #
+            # Detect the suit in shortage 
+            #
+            card_num_stat = {'S': 0, 'H': 0, 'D': 0, 'C': 0}
+            for c in candidates:
+                card_num_stat[c.get_suit()] += 1
+
+            # Sort the card_num_stat
+            card_num_stat_sorted = sorted(card_num_stat.iteritems(), key=lambda (k, v): (v, k))
+
+            # Fetch the suit in shortage, but ignore zero number suit.
+            for di in card_num_stat_sorted:
+                k, v = di
+                if v != 0:
+                    pick_suit, v = di
+                    break
+                
+            candidates = self.htapi.get_cards_by_suit(candidates, pick_suit)
+            candidates = self.htapi.arrange_cards(candidates)
+            no_score_small_card = candidates.pop(0)
+            
+            return no_score_small_card
         
-        if self.htapi.calc_score(round_cards) > 0:
+        elif self.htapi.calc_score(round_cards) > 0:
             """
-            Try to win the score card.
+            I have the same suit. Try to win the score card.
             """
-            bigger_card = self.htapi.pick_bigger_card(round_cards, my_avail_cards)
+            bigger_card = self.htapi.pick_bigger_card(my_avail_cards, round_cards)
             if bigger_card == None:
                 # Too bad, I can't win... switch to anti-score mode.
                 return self.pick_card_anti_score_mode(data)
@@ -452,9 +553,9 @@ class HacBotII(PokerBot, Htapi):
                 return bigger_card
         else:
             """
-            No score on board... should I take the leadership? Yes?! TBD?
+            I have the same suit. No score on board... should I take the leadership? Yes?! TBD?
             """
-            bigger_card = self.htapi.pick_bigger_card(round_cards, my_avail_cards)
+            bigger_card = self.htapi.pick_bigger_card(my_avail_cards, round_cards)
             if bigger_card == None:
                 # Too bad, I can't win... 
                 return self.htapi.pick_small_card(my_avail_cards)
@@ -472,10 +573,13 @@ class HacBotII(PokerBot, Htapi):
         self.stat['nextPlayers'] = data['roundPlayers'][my_pos:]
         
         if my_pos == 0:
+            self.htapi.dbg("lead play")
             card = self.__leadplay_shoot_moon_mode(data)            
         elif my_pos == 3:
+            self.htapi.dbg("last play")
             card = self.__lastplay_shoot_moon_mode(data)
         else:
+            self.htapi.dbg("mid play")
             card = self.__midplay_shoot_moon_mode(data)
             
         return card
@@ -486,9 +590,11 @@ class HacBotII(PokerBot, Htapi):
         """
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
-        if self._calc_shoot_moon_ability(data) == True:
+        if self._calc_shoot_moon_ability(data) >= 0.5:
+            self.htapi.dbg("shoot moon mode")
             card = self.pick_card_shoot_moon_mode(data)
         else:
+            self.htapi.dbg("aniti-score mode")
             card = self.pick_card_anti_score_mode(data)
             
         # NOTE: Do not remove the card in hand card, do it ad turn end event.
@@ -546,7 +652,8 @@ class HacBotII(PokerBot, Htapi):
         #
         # Check if somebody get any score and give up shoot-moon mode.
         #
-        for lp in self.players:
+        for key in self.players:
+            lp = self.players[key]
             score = self.htapi.calc_score(lp['pick'], is_expose_ah=self.stat['expose_ah_mode'])
             
             if score > 0 and lp['playerName'] != self.get_name():
