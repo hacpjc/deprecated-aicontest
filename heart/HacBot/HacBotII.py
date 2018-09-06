@@ -88,7 +88,9 @@ class HacBotII(PokerBot, Htapi):
         """
         
         #
-        # Find the non-empty suit but the card num is low. 
+        # Find the non-empty suit but the card num is low.
+        # 
+        # TODO: Try to remove non-heart suit can help shoot-moon ability.
         #
         card_num_stat = {'S': 0, 'H': 0, 'D': 0, 'C': 0}        
         for c in my_hand_cards:
@@ -96,6 +98,9 @@ class HacBotII(PokerBot, Htapi):
             
         card_num_stat_sorted = sorted(card_num_stat.iteritems(), key=lambda (k, v): (v, k))
         
+        #
+        # Try to remove a suit
+        #
         for di in card_num_stat_sorted:
             k, v = di
             if v != 0:
@@ -103,20 +108,29 @@ class HacBotII(PokerBot, Htapi):
                 
                 tgt_cards = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
                 tgt_cards = self.htapi.arrange_cards(tgt_cards)
-                small_card_num = 0
-                for c in tgt_cards:
-                    if c.get_rank_num() < Card('9S').get_rank_num():
-                        small_card_num += 1
-                    else:
-                        break
-                        
-                if small_card_num <= 3:
-                    card = tgt_cards[0]
-                    return self.htapi.remove_card(my_hand_cards, card)
+                
+                smaller_card = self.htapi.pick_smaller_card(tgt_cards, [Card('9S')])
+                if smaller_card != None:
+                    return self.htapi.remove_card(my_hand_cards, smaller_card)
+
+
+        #        
+        # In case...
+        #
+        for di in card_num_stat_sorted:
+            k, v = di
+            if v != 0:
+                pick_suit, v = di
+                
+                tgt_cards = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
+                tgt_cards = self.htapi.arrange_cards(tgt_cards)
+                
+                card = tgt_cards[0]
+                return self.htapi.remove_card(my_hand_cards, card)
+            
+        self.htapi.errmsg("BUG")
         
-        my_hand_cards = self.htapi.arrange_cards(my_hand_cards)
-        
-        card = self.htapi.pick_small_card(my_hand_cards)
+        card = my_hand_cards[0]
         return self.htapi.remove_card(my_hand_cards, card)
         
     def _select_card2pass(self, my_hand_cards):
@@ -203,12 +217,29 @@ class HacBotII(PokerBot, Htapi):
             
         self.htapi.dbg(self.get_name() + " pass 3 cards: " + format(output))
         return output
+    
+    def _do_i_have_too_many_low_rank_cards(self):
+        my_hand_cards = self.stat['hand']
         
+        low_rank_card_num = 0
+        for c in my_hand_cards:
+            if c.get_rank_num() < Card("TS").get_rank_num:
+                low_rank_card_num += 1
+                
+        # TBD
+        if low_rank_card_num >= 6:
+            return True
+        else:
+            return False
+    
     def pass_cards(self, data):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         self.stat['hand'] = self.htapi.arrange_cards(self.stat['hand'])
         
         self.htapi.dbg("Select 3 cards from: " + format(self.stat['hand']))
+        
+        if self._do_i_have_too_many_low_rank_cards() == True:
+            self.stat['shoot_moon_mode'] = False
         
         sm_ability = self._calc_shoot_moon_ability(data) 
         if sm_ability > self.SM_THOLD_PASS3:
