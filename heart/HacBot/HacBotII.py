@@ -77,7 +77,49 @@ class HacBotII(PokerBot, Htapi):
         """
         self.stat['hand'] = self.get_cards(data)
         
+    def _select_card2pass_shoot_moon_mode(self, my_hand_cards):
+        """
+        Pop out 1 card to pass
+        
+        The rule here is to pick the small cards in shortage
+        """
+        
+        #
+        # Find the non-empty suit but the card num is low. 
+        #
+        card_num_stat = {'S': 0, 'H': 0, 'D': 0, 'C': 0}        
+        for c in my_hand_cards:
+            card_num_stat[c.get_suit()] += 1
+            
+        card_num_stat_sorted = sorted(card_num_stat.iteritems(), key=lambda (k, v): (v, k))
+        
+        for di in card_num_stat_sorted:
+            k, v = di
+            if v != 0:
+                pick_suit, v = di
+                
+                tgt_cards = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
+                self.htapi.arrange_cards(tgt_cards)
+                small_card_num = 0
+                for c in tgt_cards:
+                    if c.get_rank_num() < Card('9'):
+                        small_card_num += 1
+                    else:
+                        break
+                        
+                if small_card_num <= 3:
+                    card = tgt_cards[0]
+                    return self.htapi.remove_card(my_hand_cards, card)
+        
+        self.htapi.arrange_cards(my_hand_cards)
+        
+        card = self.htapi.pick_small_card(my_hand_cards)
+        return self.htapi.remove_card(my_hand_cards, card)
+        
     def _select_card2pass(self, my_hand_cards):
+        """
+        Pop out 1 card to pass
+        """
         
         card = self.htapi.remove_card(my_hand_cards, Card('KS'))
         if card != None:
@@ -127,11 +169,10 @@ class HacBotII(PokerBot, Htapi):
         
         return self.htapi.remove_card(my_hand_cards, card)
     
-    def pass_cards(self, data):
+    def _pass_cards_anti_score_mode(self, data):
         """
-        Event: Pick 3 cards to pass to others
+        Pick 3 cards which can avoid taking score
         """
-        self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         my_hand_cards = self.stat['hand']
         
         output = []
@@ -141,8 +182,32 @@ class HacBotII(PokerBot, Htapi):
                 self.htapi.errmsg("Cannot pick a card to pass")
             output.append(card.toString())
             
-        self.htapi.dbg(self.get_name() + " Pass 3 cards: " + format(output))
+        self.htapi.dbg(self.get_name() + " pass 3 cards: " + format(output))
         return output
+    
+    def _pass_cards_shoot_moon_mode(self, data):
+        """
+        Pick 3 cards which can help myself to shoot moon.
+        """
+        my_hand_cards = self.stat['hand']
+
+        output = []
+        for i in range(3):
+            card = self._select_card2pass_shoot_moon_mode(my_hand_cards)
+            if card == None:
+                self.htapi.errmsg("Cannot pick a card to pass")
+            output.append(card.toString())
+            
+        self.htapi.dbg(self.get_name() + " pass 3 cards: " + format(output))
+        return output
+        
+    def pass_cards(self, data):
+        self.stat['hand'] = [Card(x) for x in data['self']['cards']]
+        
+        if self._calc_shoot_moon_ability(data) > 0.5:
+            return self._pass_cards_shoot_moon_mode(data)
+        else:
+            return self._pass_cards_anti_score_mode(data)
 
     def receive_opponent_cards(self, data):
         """
