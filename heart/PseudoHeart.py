@@ -394,7 +394,7 @@ class PseudoHeart(Htapi):
                 picked.append(unused_card.pop())
             
             # The player get 13 cards. Generate event: 'receive_cards'
-            self.htapi.arrange_cards(picked)
+            picked = self.htapi.arrange_cards(picked)
             ptup['hand'] = picked
             ptup['hand_origin'] = self.htapi.clone_cards(picked)
 
@@ -439,7 +439,7 @@ class PseudoHeart(Htapi):
             # Add the recevied 3 cards (from opponent)
             for c in card2pass[ptup['name']]:
                 ptup['hand'].append(c)
-            self.htapi.arrange_cards(ptup['hand'])
+            ptup['hand'] = self.htapi.arrange_cards(ptup['hand'])
             
             # Then inform the player
             ptup['recv3'] = card2pass[ptup['name']]
@@ -512,7 +512,7 @@ class PseudoHeart(Htapi):
         
         # Candidate cards
         candidates = self._get_candidates(ptup)
-        self.htapi.arrange_cards(candidates)
+        candidates = self.htapi.arrange_cards(candidates)
         candidates = self.htapi.clone_cards(candidates)
         
         # Round players

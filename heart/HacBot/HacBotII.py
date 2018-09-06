@@ -99,7 +99,7 @@ class HacBotII(PokerBot, Htapi):
                 pick_suit, v = di
                 
                 tgt_cards = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
-                self.htapi.arrange_cards(tgt_cards)
+                tgt_cards = self.htapi.arrange_cards(tgt_cards)
                 small_card_num = 0
                 for c in tgt_cards:
                     if c.get_rank_num() < Card('9S').get_rank_num():
@@ -111,7 +111,7 @@ class HacBotII(PokerBot, Htapi):
                     card = tgt_cards[0]
                     return self.htapi.remove_card(my_hand_cards, card)
         
-        self.htapi.arrange_cards(my_hand_cards)
+        my_hand_cards = self.htapi.arrange_cards(my_hand_cards)
         
         card = self.htapi.pick_small_card(my_hand_cards)
         return self.htapi.remove_card(my_hand_cards, card)
@@ -164,7 +164,7 @@ class HacBotII(PokerBot, Htapi):
 
         # Remove the most large card in the target suit        
         candidate_list = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
-        self.htapi.arrange_cards(candidate_list)
+        candidate_list = self.htapi.arrange_cards(candidate_list)
         card = candidate_list.pop()
         
         return self.htapi.remove_card(my_hand_cards, card)
@@ -203,6 +203,9 @@ class HacBotII(PokerBot, Htapi):
         
     def pass_cards(self, data):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
+        self.stat['hand'] = self.htapi.arrange_cards(self.stat['hand'])
+        
+        self.htapi.dbg("Select 3 cards from: " + format(self.stat['hand']))
         
         sm_ability = self._calc_shoot_moon_ability(data) 
         if sm_ability > 0.7:
@@ -483,7 +486,7 @@ class HacBotII(PokerBot, Htapi):
         for c in my_hand_cards:
             unused_same_suit_cards = self.htapi.get_cards_by_suit(opponent_unused_cards, c.get_suit())
             if len(unused_same_suit_cards) > 0:
-                self.htapi.arrange_cards(unused_same_suit_cards)
+                unused_same_suit_cards = self.htapi.arrange_cards(unused_same_suit_cards)
                 
                 if c.get_rank_num() > unused_same_suit_cards[-1].get_rank_num():
                     win_count += 1
@@ -523,7 +526,7 @@ class HacBotII(PokerBot, Htapi):
         if len(my_heart_cards) > 0:
             unused_heart_cards = self.htapi.get_cards_by_suit(opponent_cards, 'H')
             if len(unused_heart_cards) > 0:
-                self.htapi.arrange_cards(unused_heart_cards)
+                unused_heart_cards = self.htapi.arrange_cards(unused_heart_cards)
             
                 for c in my_heart_cards:
                     if c.get_rank_num() > unused_heart_cards[-1].get_rank_num():
@@ -535,7 +538,7 @@ class HacBotII(PokerBot, Htapi):
         for c in my_avail_cards:
             unused_same_suit_cards = self.htapi.get_cards_by_suit(opponent_cards, c.get_suit())
             if len(unused_same_suit_cards) > 0:
-                self.htapi.arrange_cards(unused_same_suit_cards)
+                unused_same_suit_cards = self.htapi.arrange_cards(unused_same_suit_cards)
                 
                 if c.get_rank_num() > unused_same_suit_cards[-1].get_rank_num():
                     return c
@@ -556,7 +559,7 @@ class HacBotII(PokerBot, Htapi):
                 pick_suit = c.get_suit()
                 
         candidates = self.htapi.get_cards_by_suit(my_avail_cards, pick_suit)
-        self.htapi.arrange_cards(candidates)
+        candidates = self.htapi.arrange_cards(candidates)
         
         return candidates[-1] 
     

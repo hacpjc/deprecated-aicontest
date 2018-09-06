@@ -122,7 +122,7 @@ class HacBot(PokerBot, Htapi):
 
         # Remove the most large card in the target suit        
         candidate_list = self.htapi.get_cards_by_suit(my_hand_cards, pick_suit)
-        self.htapi.arrange_cards(candidate_list)
+        candidate_list = self.htapi.arrange_cards(candidate_list)
         card = candidate_list.pop()
         
         return self.htapi.remove_card(my_hand_cards, card)
