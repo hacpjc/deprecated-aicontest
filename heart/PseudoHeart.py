@@ -792,8 +792,8 @@ def pseudo_contest():
     """
     from HacBot.HacBot import HacBot
     from HacBot.HacBotII import HacBotII
-    from SampleBot.SampleBot import SampleBot
     from RandomBot.RandomBot import RandomBot
+#     from SampleBot.SampleBot import SampleBot
 #     from SelmonBot.selmon_bot import MCTSBot
     
     #
@@ -808,8 +808,8 @@ def pseudo_contest():
     # If you feel the msg is to annoying, disable it in Htapi
     #
     mybot = HacBotII('HacBotII', is_debug=True)
-    opponent1 = HacBot('HacBot')
-    opponent2 = SampleBot('SampleBot')
+    opponent1 = HacBot('HacBot-1')
+    opponent2 = HacBot('HacBot-2')
     opponent3 = RandomBot('RandomBot')
     players = [mybot, opponent1, opponent2, opponent3]
 
