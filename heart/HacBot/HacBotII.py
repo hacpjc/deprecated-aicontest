@@ -665,7 +665,7 @@ class HacBotII(PokerBot, Htapi):
         """
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
-        if self._calc_shoot_moon_ability(data) >= self.SM_TOHLD_PICK:
+        if self._calc_shoot_moon_ability(data) >= self.SM_THOLD_PICK:
             self.htapi.dbg("shoot moon mode")
             card = self.pick_card_shoot_moon_mode(data)
         else:
