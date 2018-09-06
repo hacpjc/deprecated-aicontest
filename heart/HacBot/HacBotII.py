@@ -9,6 +9,9 @@ class HacBotII(PokerBot, Htapi):
     Don't want to avoid opponents shooting the moon, because I don't loss any money :-) 
     """
     
+    SM_THOLD_PASS3 = 0.6
+    SM_THOLD_PICK = 0.2
+    
     def __init__(self, name, is_debug=False):
         super(HacBotII, self).__init__(name)
 
@@ -208,7 +211,7 @@ class HacBotII(PokerBot, Htapi):
         self.htapi.dbg("Select 3 cards from: " + format(self.stat['hand']))
         
         sm_ability = self._calc_shoot_moon_ability(data) 
-        if sm_ability > 0.7:
+        if sm_ability > self.SM_THOLD_PASS3:
             self.htapi.dbg("shoot moon mode pass3: " + str(sm_ability))
             return self._pass_cards_shoot_moon_mode(data)
         else:
@@ -662,7 +665,7 @@ class HacBotII(PokerBot, Htapi):
         """
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
-        if self._calc_shoot_moon_ability(data) >= 0.2:
+        if self._calc_shoot_moon_ability(data) >= self.SM_TOHLD_PICK:
             self.htapi.dbg("shoot moon mode")
             card = self.pick_card_shoot_moon_mode(data)
         else:
