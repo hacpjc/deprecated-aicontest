@@ -204,9 +204,12 @@ class HacBotII(PokerBot, Htapi):
     def pass_cards(self, data):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
-        if self._calc_shoot_moon_ability(data) > 0.7:
+        sm_ability = self._calc_shoot_moon_ability(data) 
+        if sm_ability > 0.7:
+            self.htapi.dbg("shoot moon mode pass3: " + str(sm_ability))
             return self._pass_cards_shoot_moon_mode(data)
         else:
+            self.htapi.dbg("anti score mode pass3")
             return self._pass_cards_anti_score_mode(data)
 
     def receive_opponent_cards(self, data):
@@ -471,7 +474,7 @@ class HacBotII(PokerBot, Htapi):
         opponent_unused_cards = self._get_unused_cards_by_suits(my_hand_cards)
         opponent_unused_penalty_cards = self.htapi.find_penalty_cards(opponent_unused_cards)
         
-        left_turn_num = float(len(my_hand_cards))
+        left_turn_num = len(my_hand_cards)
         
         """
         The prediction is simple, calculate how many turns I can win.
@@ -485,7 +488,8 @@ class HacBotII(PokerBot, Htapi):
                 if c.get_rank_num() > unused_same_suit_cards[-1].get_rank_num():
                     win_count += 1
         
-        return win_count / left_turn_num
+        self.htapi.dbg("shoot moon ability: " + str(win_count) + " / " + str(left_turn_num))
+        return win_count / float(left_turn_num)
       
     
     def __leadplay_shoot_moon_mode(self, data):
@@ -724,10 +728,8 @@ class HacBotII(PokerBot, Htapi):
         
         for key in self.players:
             lp = self.players[key]
-            print ("player: " + lp['playerName'] + ": " + format(lp['pick']))
             score = self.htapi.calc_score(lp['pick'], is_expose_ah=self.stat['expose_ah_mode'])
-            
-            if score > 0 and lp['playerName'] != self.get_name():
+            if score != 0 and lp['playerName'] != self.get_name():
                 self.htapi.dbg("Give up shoot-moon mode...So sad.")
                 self.stat['shoot_moon_mode'] = False
         
