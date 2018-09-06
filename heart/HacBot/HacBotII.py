@@ -368,7 +368,7 @@ class HacBotII(PokerBot, Htapi):
         return card2shoot
     
     def __midplay(self, data):
-        round_cards = [Card(x) for x in data['self']['roundCard']]
+        round_cards = self.stat['roundCard']
         my_hand_cards = self.stat['hand']
         my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
         
@@ -413,7 +413,7 @@ class HacBotII(PokerBot, Htapi):
             return high_card
     
     def __lastplay(self, data):
-        round_cards = [Card(x) for x in data['self']['roundCard']]
+        round_cards = self.stat['roundCard']
         my_hand_cards = self.stat['hand']
         my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
         
@@ -445,7 +445,7 @@ class HacBotII(PokerBot, Htapi):
         my_pos = round_players.index(self.get_name())
 
         # Get players in next turn.
-        self.stat['nextPlayers'] = data['roundPlayers'][my_pos:]
+        self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
         
         if my_pos == 0:
             card = self.__leadplay(data)            
@@ -635,16 +635,16 @@ class HacBotII(PokerBot, Htapi):
         my_pos = round_players.index(self.get_name())
 
         # Get players in next turn.
-        self.stat['nextPlayers'] = data['roundPlayers'][my_pos:]
+        self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
         
         if my_pos == 0:
-            self.htapi.dbg("lead play")
+            self.htapi.dbg("sm lead play")
             card = self.__leadplay_shoot_moon_mode(data)            
         elif my_pos == 3:
-            self.htapi.dbg("last play")
+            self.htapi.dbg("sm last play")
             card = self.__lastplay_shoot_moon_mode(data)
         else:
-            self.htapi.dbg("mid play")
+            self.htapi.dbg("sm mid play")
             card = self.__midplay_shoot_moon_mode(data)
             
         return card
@@ -717,8 +717,14 @@ class HacBotII(PokerBot, Htapi):
         #
         # Check if somebody get any score and give up shoot-moon mode.
         #
+        
+        if self.stat['shoot_moon_mode'] == False:
+            # Already disable shoot moon mode.
+            return
+        
         for key in self.players:
             lp = self.players[key]
+            print ("player: " + lp['playerName'] + ": " + format(lp['pick']))
             score = self.htapi.calc_score(lp['pick'], is_expose_ah=self.stat['expose_ah_mode'])
             
             if score > 0 and lp['playerName'] != self.get_name():

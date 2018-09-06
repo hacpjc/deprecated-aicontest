@@ -275,7 +275,7 @@ class HacBot(PokerBot, Htapi):
     
     def __midplay(self, data):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
-        round_cards = [Card(x) for x in data['self']['roundCard']]
+        round_cards = self.stat['roundCard']
         my_hand_cards = self.stat['hand']
         my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
         
@@ -321,7 +321,7 @@ class HacBot(PokerBot, Htapi):
     
     def __lastplay(self, data):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
-        round_cards = [Card(x) for x in data['self']['roundCard']]
+        round_cards = self.stat['roundCard']
         my_hand_cards = self.stat['hand']
         my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
         
@@ -356,7 +356,7 @@ class HacBot(PokerBot, Htapi):
         my_pos = round_players.index(self.get_name())
 
         # Get players in next turn.
-        self.stat['nextPlayers'] = data['roundPlayers'][my_pos:]
+        self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
             
         if my_pos == 0:
             card = self.__leadplay(data)            

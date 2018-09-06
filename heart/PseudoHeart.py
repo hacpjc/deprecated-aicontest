@@ -528,7 +528,7 @@ class PseudoHeart(Htapi):
                         
                         'gameNumber': self.db['gameNumber'],
                         'dealNumber': self.db['dealNumber'],
-                        'roundCard': [x.toString() for x in round_cards]
+                        'roundCard': ''
                     },
             'roundPlayers': round_players
         }
