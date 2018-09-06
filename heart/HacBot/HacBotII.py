@@ -204,7 +204,7 @@ class HacBotII(PokerBot, Htapi):
     def pass_cards(self, data):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
-        if self._calc_shoot_moon_ability(data) > 0.5:
+        if self._calc_shoot_moon_ability(data) > 0.7:
             return self._pass_cards_shoot_moon_mode(data)
         else:
             return self._pass_cards_anti_score_mode(data)
@@ -655,7 +655,7 @@ class HacBotII(PokerBot, Htapi):
         """
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
-        if self._calc_shoot_moon_ability(data) >= 0.5:
+        if self._calc_shoot_moon_ability(data) >= 0.2:
             self.htapi.dbg("shoot moon mode")
             card = self.pick_card_shoot_moon_mode(data)
         else:
