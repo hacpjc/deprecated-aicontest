@@ -102,7 +102,7 @@ class HacBotII(PokerBot, Htapi):
                 self.htapi.arrange_cards(tgt_cards)
                 small_card_num = 0
                 for c in tgt_cards:
-                    if c.get_rank_num() < Card('9').get_rank_num():
+                    if c.get_rank_num() < Card('9S').get_rank_num():
                         small_card_num += 1
                     else:
                         break
