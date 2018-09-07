@@ -227,7 +227,7 @@ class HacBotII(PokerBot, Htapi):
                 low_rank_card_num += 1
                 
         # TBD
-        if low_rank_card_num >= 6:
+        if low_rank_card_num >= 9:
             return True
         else:
             return False
@@ -237,9 +237,6 @@ class HacBotII(PokerBot, Htapi):
         self.stat['hand'] = self.htapi.arrange_cards(self.stat['hand'])
         
         self.htapi.dbg("Select 3 cards from: " + format(self.stat['hand']))
-        
-        if self._do_i_have_too_many_low_rank_cards() == True:
-            self.stat['shoot_moon_mode'] = False
         
         sm_ability = self._calc_shoot_moon_ability(data) 
         if sm_ability > self.SM_THOLD_PASS3:
