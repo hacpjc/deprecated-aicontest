@@ -47,12 +47,13 @@ class Car(Hacjpg):
     ANGLE_MAX = 45.0
     ANGLE_MIN = -45.0
     
-    def __init__(self, emit_func, driver_object, is_debug=False):
+    def __init__(self, emit_func, driver_object, is_debug=False, is_auto_reset=False):
         self._emit_func = emit_func
         self.hacjpg = Hacjpg()
         
         self.driver = driver_object()
         self.is_debug = is_debug
+        self.is_auto_reset = is_auto_reset
         self._save_source_img = is_debug
 
     def rx_telemetry(self, dashboard):
@@ -96,7 +97,7 @@ class Car(Hacjpg):
         self.img = self.hacjpg.open_base64tojpg(dashboard['image'])
         del dashboard['image']
         
-        self.img = self.hacjpg.bgr2rgb(self.img)
+        self.img = self.hacjpg.convert_bgr2rgb(self.img)
         if self.is_debug == True:
             self.hacjpg.show(self.img, name="source")
         
@@ -129,6 +130,10 @@ class Car(Hacjpg):
         """
         Client's connected. Time to start the tour.
         """
+        if self.is_auto_reset == True:
+            msg("Auto reset...")
+            self.tx_restart()
+        
         data = { 'steering_angle': 0, 'throttle': 1.0 }
         
         output = { 
@@ -136,10 +141,11 @@ class Car(Hacjpg):
             'throttle': str(data['throttle']) 
             }
         self._emit_func('steer', output, skip_sid=True)
+
         
     def tx_restart(self):
         """
-        Send restart to rest the game.
+        Send restart to reset the game.
         """
         self._emit_func('restart', data={}, skip_sid=True)
 
@@ -158,7 +164,7 @@ if __name__ == "__main__":
     """
     from HacDriver import HacDriver
     driver = HacDriver(is_debug=True)
-    car = Car(my_emit_func, HacDriver, is_debug=False)
+    car = Car(my_emit_func, HacDriver, is_debug=False, is_auto_reset=True)
 
     @sio.on('telemetry')
     def telemetry(sid, dashboard):
@@ -173,9 +179,6 @@ if __name__ == "__main__":
     def connect(sid, environ):
         msg(" -> connect: " + str(sid) + format(environ))
         car.rx_connect(sid, environ)
-        
-        # Restart race whenever I got a connect event! so I don't need to click the botton.
-        my_emit_func('restart', data={})
 
     app = socketio.Middleware(sio, Flask(__name__))
     eventlet.wsgi.server(eventlet.listen(('', 4567)), app)
