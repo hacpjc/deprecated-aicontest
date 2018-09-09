@@ -47,14 +47,14 @@ class Car(Hacjpg):
     ANGLE_MAX = 45.0
     ANGLE_MIN = -45.0
     
-    def __init__(self, emit_func, driver_object, is_debug=False, is_auto_reset=False):
+    def __init__(self, emit_func, driver_object, is_debug=False, is_auto_reset=False, is_save_img=False):
         self._emit_func = emit_func
         self.hacjpg = Hacjpg()
         
         self.driver = driver_object()
         self.is_debug = is_debug
         self.is_auto_reset = is_auto_reset
-        self._save_source_img = is_debug
+        self.is_save_img = is_save_img
 
     def rx_telemetry(self, dashboard):
         self._dashboard = dashboard
@@ -101,7 +101,7 @@ class Car(Hacjpg):
         if self.is_debug == True:
             self.hacjpg.show(self.img, name="source")
         
-        if self._save_source_img == True:
+        if self.is_save_img == True:
             self.hacjpg.save2folder("log", self.img)
         
         steering_angle, throttle = self.driver.try2drive(self.img, dashboard)
@@ -164,7 +164,7 @@ if __name__ == "__main__":
     """
     from HacDriver import HacDriver
     driver = HacDriver(is_debug=True)
-    car = Car(my_emit_func, HacDriver, is_debug=False, is_auto_reset=True)
+    car = Car(my_emit_func, HacDriver, is_debug=True, is_auto_reset=True, is_save_img=False)
 
     @sio.on('telemetry')
     def telemetry(sid, dashboard):

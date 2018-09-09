@@ -273,6 +273,94 @@ class Hacjpg():
 
         return img
     
+    def reindeer2(self, img, rgb=(0, 0, 0), prefer_left=True):
+        """
+        Contest specific calculation. Find the color blocks, calculate the angle.
+        
+                        Find the line in the middle of a road
+                       V
+        +++++++++++++++++++++++++++
+        +    .        /           .
+        +  .         /          .
+        + .         /         .
+        +          /       .
+        +         /      .
+        +       /      .
+        ++++++++++++++++++++++++ 
+        
+        Then, I can use the angle to find-out how to get wheel angle.
+        
+        x = [8450.0, 8061.0, 7524.0, 7180.0, 8247.0, 8929.0, 8896.0, 9736.0, 9658.0, 9592.0]
+        y = range(len(x))
+        best_fit_line = np.poly1d(np.polyfit(y, x, 1))(y)
+        """
+        width, height = self.get_resolution(img)
+    
+        map_y = []
+        map_y_uniq = []
+        map_x = []
+        for y in range(height):
+            is_found = False
+            
+            if prefer_left == True:
+                """
+                Prefer the color block at left-side
+                """
+                for x in range(width):
+                    r, g, b = self.get_pixel_rgb(img, x, y)
+                    
+                    if (r, g, b) == rgb:
+                        map_y.append(y)
+                        map_x.append(x)
+                        
+                        if is_found == False:
+                            is_found = True
+                            map_y_uniq.append(y)
+                    elif is_found == True:
+                        break
+            else:
+                """
+                Prefer the color block at right-side
+                """
+                for x in range(width - 1, -1, -1):
+                    r, g, b = self.get_pixel_rgb(img, x, y)
+                    
+                    if (r, g, b) == rgb:
+                        map_y.append(y)
+                        map_x.append(x)
+                        
+                        if is_found == False:
+                            is_found = True
+                            map_y_uniq.append(y)
+                    elif is_found == True:
+                        break
+                        
+        if len(map_y_uniq) == 0:
+            return None, None, None, None
+                
+        fit_x = numpy.poly1d(numpy.polyfit(map_y, map_x, 1))(map_y_uniq)
+        fit_x = [int(x) for x in fit_x]
+        
+        for idx in range(len(map_y_uniq)):
+            #
+            # Fix x value if it's out of bound.
+            #
+            if fit_x[idx] >= width:
+                fit_x[idx] = width - 1
+                
+            if fit_x[idx] < 0:
+                fit_x[idx] = 0
+                
+            y, x = map_y_uniq[idx], fit_x[idx]
+            self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
+            
+        central_point_y = int((map_y_uniq[0] + map_y_uniq[-1]) / 2.0)
+        central_point_x = int((fit_x[0] + fit_x[-1]) / 2.0)
+        
+        angle = numpy.rad2deg(numpy.arctan2((map_y_uniq[-1] - map_y_uniq[0]), fit_x[-1] - fit_x[0]))
+        
+        return map_y_uniq, fit_x, (central_point_x, central_point_y), angle
+        
     def reindeer(self, img, rgb=(0, 0, 0), prefer_left=True):
         """
         Contest specific calculation. Find the color blocks, calculate the angle.
@@ -298,6 +386,10 @@ class Hacjpg():
                     elif is_found == True:
                         row_data['ed'] = x
                         break
+                
+                if is_found == True and row_data['ed'] == 0:
+                    # The end point is the right edge of picture
+                    row_data['ed'] = width
                         
                 rgb_filter.append(row_data)
         else:
@@ -318,26 +410,72 @@ class Hacjpg():
                     elif is_found == True:
                         row_data['st'] = x
                         break
+                
+                if row_data['st'] == 0 and is_found == True:
+                    # The start point is the left edge of pic
+                    row_data['st'] = 0
                         
                 rgb_filter.append(row_data)
             
         sum = 0
-        h = 1.0
+        cnt = 0.0
+        pdiff_sum = 0
+        pdiff_cnt = 0.0
+        pavg = 0
+        output_pos_sum = (0, 0)
         for y in range(height):
             row = rgb_filter[y]
-            avg = (row['st'] + row['ed']) / 2
-            sum += avg
-            if avg > 0:
-                print("avg: " + format(avg))
-                h += 1.0
+            
+            thisavg = (row['st'] + row['ed']) / 2
+            if thisavg == 0:
+                continue
+            
+#             if (prefer_left == True and row['st'] > 0) or (prefer_left == False and row['ed'] != width):
+            if 0 == 0:
+                print ("efficient thisavg: " + format(thisavg), format(row['st']), format(row['ed']))
+                self.set_pixel_rgb(img, thisavg, y, rgb=(0, 255, 0))
+                sum += thisavg
+                cnt += 1.0
                 
-            if h >= 10:
-                break
-        
-        real_avg = sum / h
-        return real_avg
+                sum_x, sum_y = output_pos_sum
+                sum_x += thisavg
+                sum_y += y
+                output_pos_sum = (sum_x, sum_y)
                 
-def unitest(path):
+                if pavg == 0:
+                    pavg = thisavg
+                else:
+                    pdiff_sum += thisavg - pavg
+                    pdiff_cnt += 1.0
+            else:
+                print("ignore: ", format(row['st']), format(row['ed']))
+
+        if pdiff_cnt > 0:
+            pdiff_avg = pdiff_sum / pdiff_cnt
+            
+            avg_x, avg_y = output_pos_sum
+            output_pos_avg = (avg_x / cnt, avg_y / cnt)
+        else:
+            pdiff_avg = 0
+            output_pos_avg = (0, 0)
+            print ("pdiff avg: n/a")
+
+        """
+        pdiff < 0, the road looks like:
+            ////
+           ////
+          ////
+          
+        pdiff > 0, the road looks like:
+         \\\\
+          \\\\
+           \\\\
+           
+        And use pos avg to identify the position of the road
+        """
+        return pdiff_avg, output_pos_avg
+              
+def unitest_reindeer2(path):
     hacjpg = Hacjpg()
 
     img = hacjpg.open_path(path)
@@ -351,23 +489,59 @@ def unitest(path):
     # flatten
     #
     img = hacjpg.crosscut(img, 0.5, 1.0)
-    hacjpg.show(img, waitkey=0)
+#     hacjpg.show(img, waitkey=0)
+    
     img = hacjpg.color_quantization(img)
-    hacjpg.show(img, waitkey=0)
+#     hacjpg.show(img, waitkey=0)
+    
     img = hacjpg.flatten2rgb(img)
-    hacjpg.show(img, waitkey=0)
+#     hacjpg.show(img, waitkey=0)
+    
     print (format(hacjpg.get_unique_colors(img)))
     
-    hacjpg.reindeer(img, rgb=(0, 0, 255), prefer_left=True)
+    v = hacjpg.reindeer2(img, rgb=(0, 0, 255))
+    print("reindeer2 result: ", v)
+    
+    hacjpg.show(img, waitkey=0)
+    ###
+    
+    hacjpg.close(img) 
+      
+def unitest_reindeer(path):
+    hacjpg = Hacjpg()
+
+    img = hacjpg.open_path(path)
+    
+    #
+    # Input
+    #
+    hacjpg.show(img, waitkey=0)
+    
+    #
+    # flatten
+    #
+    img = hacjpg.crosscut(img, 0.5, 1.0)
+#     hacjpg.show(img, waitkey=0)
+    
+    img = hacjpg.color_quantization(img)
+#     hacjpg.show(img, waitkey=0)
+    
+    img = hacjpg.flatten2rgb(img)
+#     hacjpg.show(img, waitkey=0)
+    
+    print (format(hacjpg.get_unique_colors(img)))
+    
+    v = hacjpg.reindeer(img, rgb=(0, 0, 255), prefer_left=True)
+    print("reindeer result: ", v)
+    
+    hacjpg.show(img, waitkey=0)
+    ###
     
     hacjpg.close(img)
   
 if __name__ == "__main__":
-    path = ""
-    if len(sys.argv) == 2:
-        path = sys.argv[1]
-    else:
-        path = "log/111.jpg"
-    
-    unitest("log/222.jpg")
+    for root, dirs, files in os.walk("./log"):
+        path = root.split(os.sep)
+        for file in files:
+            unitest_reindeer2("./log/" + file)
     
