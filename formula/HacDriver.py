@@ -39,18 +39,19 @@ class HacDriver(Hacjpg):
             # Throttle -1.0 ~ 1.0
             'tho_max': 0.5,
             'tho_min': 0.0,
-            'brk_max': 0.1,
+            'brk_max': 0.6,
             'brk_min': 0.0,
             # Steering angle -45 ~ 45
             'sta_max': 40,
             'sta_min': -40,
             # history
-            'history_max': 32,
+            'history_max': 16,
             # speed error tolerance
             'speed_error_tolerance': 0.001,
             'speed_max': 1.6,
-            'speed_min': 0.2,
+            'speed_min': 0.15,
             'speed_update_unit': 0.01,
+            'speed_back_limit': -1.0,
             }
         msg("Car spec: " + format(self.spec))
         
@@ -74,7 +75,9 @@ class HacDriver(Hacjpg):
             'road_prefer_rgb': (0, 0, 255),
             # Expected speed
             'speed': 0.1,
-            'speed_inc_cnt': 0
+            'speed_inc_cnt': 0,
+            'urgent_turn': False,
+            'urgent_turn_auto_drive': 0,
             }
         
     def history_create_data(self, dashboard):
@@ -112,6 +115,77 @@ class HacDriver(Hacjpg):
             return None
         else:
             return self.history[idx]
+        
+
+    def set_speed(self, speed):
+        vbsmsg("Set speed: " + str(speed))
+        self.dyn['speed'] = speed
+        
+        self.dyn['speed_inc_cnt'] = 0
+    
+    def set_speed_if_negative(self, speed):
+        if speed < 0:
+            errmsg("Invalid speed" + str(speed))
+        
+        if self.dyn['speed'] < 0:
+            self.dyn['speed'] = speed
+            
+        self.dyn['speed_inc_cnt'] = 0
+            
+    def set_speed_if_postive(self, speed):
+        if speed > 0:
+            errmsg("Invalid speed" + str(speed))
+            
+        if self.dyn['speed'] > 0:
+            self.dyn['speed'] = speed
+            
+        self.dyn['speed_inc_cnt'] = 0
+        
+    def update_speed_abs(self, increase=True):
+        """
+        THO + ABS (Anti-lock Braking System)
+        """
+        if increase == True:
+            if self.dyn['speed_inc_cnt'] >= 4 or self.dyn['speed'] <= 0.4:
+                speed = self.spec['speed_update_unit']
+            else:
+                speed = (self.spec['speed_update_unit'] / 4.0)
+                
+            return self.update_speed(speed)
+        else:
+            """
+            Decrease speed but no slower than...
+            """
+            speed = (self.spec['speed_update_unit'] * 8.0) * (-1)
+            return self.update_speed(speed)
+            
+    def update_speed(self, speed):
+        if speed > 0:
+            """
+            Increase speed by input amount
+            """
+            self.dyn['speed'] += speed     
+            self.dyn['speed_inc_cnt'] += 1
+            
+            if self.dyn['speed'] >= self.spec['speed_max']:
+                self.dyn['speed'] = self.spec['speed_max']
+                
+            vbsmsg("speed+: " + str(self.dyn['speed']))
+        else:
+            """
+            Decrease speed but no slower than...
+            """
+            self.dyn['speed_inc_cnt'] = 0
+            
+            if (self.dyn['speed'] - abs(speed)) < self.spec['speed_min']:
+                return False
+            
+            self.dyn['speed'] -= abs(speed) 
+            
+            vbsmsg("speed-: " + str(self.dyn['speed']))
+            
+        self.dyn['speed'] = round(self.dyn['speed'], 4)
+        return True
         
     def calc_sta_simple(self, dashboard, expect_sta=0):
         """
@@ -189,75 +263,7 @@ class HacDriver(Hacjpg):
                 return latest_sta
         else:
             return 0
-        
-    def set_speed(self, speed):
-        vbsmsg("Set speed: " + str(speed))
-        self.dyn['speed'] = speed
-        
-        self.dyn['speed_inc_cnt'] = 0
-    
-    def set_speed_if_negative(self, speed):
-        if speed < 0:
-            errmsg("Invalid speed" + str(speed))
-        
-        if self.dyn['speed'] < 0:
-            self.dyn['speed'] = speed
-            
-        self.dyn['speed_inc_cnt'] = 0
-            
-    def set_speed_if_postive(self, speed):
-        if speed > 0:
-            errmsg("Invalid speed" + str(speed))
-            
-        if self.dyn['speed'] > 0:
-            self.dyn['speed'] = speed
-            
-        self.dyn['speed_inc_cnt'] = 0
-        
-    def update_speed_abs(self, increase=True):
-        if increase == True:
-            if self.dyn['speed_inc_cnt'] >= 4 or self.dyn['speed'] <= 0.4:
-                speed = self.spec['speed_update_unit']
-            else:
-                speed = (self.spec['speed_update_unit'] / 5.0)
-                
-            return self.update_speed(speed)
-        else:
-            """
-            Decrease speed but no slower than...
-            """
-            speed = (self.spec['speed_update_unit'] * 2.0) * (-1)
-            return self.update_speed(speed)
-            
-    def update_speed(self, speed):
-        if speed > 0:
-            """
-            Increase speed by input amount
-            """
-            self.dyn['speed'] += speed     
-            self.dyn['speed_inc_cnt'] += 1
-            
-            if self.dyn['speed'] >= self.spec['speed_max']:
-                self.dyn['speed'] = self.spec['speed_max']
-                
-            vbsmsg("speed+: " + str(self.dyn['speed']))
-        else:
-            """
-            Decrease speed but no slower than...
-            """
-            self.dyn['speed_inc_cnt'] = 0
-            
-            if (self.dyn['speed'] - abs(speed)) < self.spec['speed_min']:
-                return False
-            
-            self.dyn['speed'] -= abs(speed) 
-            
-            vbsmsg("speed-: " + str(self.dyn['speed']))
-            
-        self.dyn['speed'] = round(self.dyn['speed'], 4)
-        return True
-        
-            
+         
     def calc_expect_sta(self, dashboard):
         ri_map_y, ri_map_x, ri_cpoint, ri_angle = self.dyn['reindeer_map_y'], self.dyn['reindeer_map_x'], self.dyn['reindeer_cpoint'], self.dyn['reindeer_angle']
         
@@ -281,7 +287,9 @@ class HacDriver(Hacjpg):
         #
         RI_CPOINT_X_DIFF_THOLD = 60
         RI_CPOINT_Y_DIFF_THOLD = 40
-        ANGLE_DIFF_THOLD = 30
+        ANGLE_DIFF_THOLD = 30 # Cannot > 45
+        
+        self.dyn['urgent_turn'] = False
         
         if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD:
             if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
@@ -302,14 +310,15 @@ class HacDriver(Hacjpg):
                 pass
             else:
                 self.set_speed(self.spec['speed_min'])
+                self.dyn['urgent_turn'] = True
         
         #
         # Adjust wheel
         #
         
-        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD and self.dyn['speed'] >= (self.spec['speed_max'] / 2.0):
+        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD and angle_diff < ANGLE_DIFF_THOLD:
             """
-            Small diff, cpoint not so far
+            Small diff, cpoint near
             """
             vbsmsg("cpoint is near")
             if ri_cpoint_x > ri_img_width_half:
@@ -359,6 +368,48 @@ class HacDriver(Hacjpg):
                     return sta
             else:
                 return 0
+            
+        elif self.dyn['urgent_turn'] == True:
+            
+            vbsmsg(" *** URGENT TURN CAUTION")
+            
+            if ri_cpoint_x > ri_img_width_half:
+                # cpoint is at right side
+                if ri_angle > 90:
+                    """
+                        |    /    /
+                        |   / o /
+                    ____|__/___/
+                    """
+                    sta = angle_diff * 2.0
+                    return sta
+                else:
+                    """
+                        |  \   \
+                        |   \ o \
+                    ____|____\___\
+                    """
+                    return math.sqrt(angle_diff)
+            elif ri_cpoint_x < ri_img_width_half:
+                # cpoint is at left side
+                if ri_angle > 90:
+                    """
+                      /   /   |
+                     / o /    |
+                    /__/______|
+                    """
+                    sta =  math.sqrt(angle_diff) * (-1)
+                    return sta
+                else:
+                    """
+                    \   \     |
+                     \ o \    |
+                     _\ _\____|
+                    """
+                    sta = (angle_diff) * (-2)
+                    return sta
+            else:
+                return 0
         else:
             """
             Big diff, cpoint is far
@@ -375,7 +426,7 @@ class HacDriver(Hacjpg):
                     if angle_diff < 10:
                         sta = math.sqrt(ri_angle - 90)
                     else:
-                        sta = angle_diff / 1.0
+                        sta = angle_diff / 2.0
                     return sta
                 else:
                     """
@@ -403,7 +454,7 @@ class HacDriver(Hacjpg):
                     if angle_diff < 10:
                         sta = math.sqrt(angle_diff) * (-1)
                     else:
-                        sta = (angle_diff / 1.0) * (-1)
+                        sta = (angle_diff / 2.0) * (-1)
                         
                     return sta
             else:
@@ -411,25 +462,33 @@ class HacDriver(Hacjpg):
             
     def calc_sta(self, dashboard):
         """
-        To turn to the left channel, try: -10 * 10 fps
+        Calculate steering angle (sta). Depend on camera data.
         """
-        expect_sta = 0
-
+        latest_hist = self.history_get(0)
+        
         if self.dyn['reindeer_map_y'] == None:
             """
             Cannot find the road. Do something. plz
-            """
-            self.set_speed(-1)
-            return 0.0
+            """           
+            self.set_speed(self.spec['speed_back_limit'])
+            
+            if self.dyn['urgent_turn'] == True and self.dyn['urgent_turn_auto_drive'] < 8:
+                self.dyn['urgent_turn_auto_drive'] += 1
+                vbsmsg("Auto turn ctrl")
+                return latest_hist['sta']
+            else:
+                return 0.0
+            
         else:
             """
             Go forward
             """
+            self.dyn['urgent_turn_auto_drive'] = 0
+            
             self.set_speed_if_negative(self.spec['speed_min'])
-        
-        expect_sta = self.calc_expect_sta(dashboard)
-        out_sta = self.calc_sta_simple(dashboard, expect_sta)
-        return out_sta
+            expect_sta = self.calc_expect_sta(dashboard)
+            out_sta = self.calc_sta_simple(dashboard, expect_sta)
+            return out_sta
         
     def calc_tho_fixed_speed(self, dashboard, expect_speed=0.6, can_brake=False):
         """
@@ -488,7 +547,7 @@ class HacDriver(Hacjpg):
                 else:
                     # Add some brk to improve speed
                     brk_left = self.spec['brk_max'] - latest_brk
-                    brk2add = round(brk_left / 30.0, 4)
+                    brk2add = round(brk_left / 50.0, 4)
                     brk = latest_brk + brk2add
                     return (0.0, brk)
             elif speed_diff < 0:

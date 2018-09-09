@@ -27,9 +27,10 @@ def errmsg(*argv):
     bt()
     
 def vbsmsg(*argv):
-    sys.stdout.write("...")
-    sys.stdout.write("".join(list(argv)) + "\n")
-    sys.stdout.flush()
+#     sys.stdout.write("...")
+#     sys.stdout.write("".join(list(argv)) + "\n")
+#     sys.stdout.flush()
+    pass
 
 from Hacjpg import Hacjpg
 class Car(Hacjpg):
