@@ -50,6 +50,7 @@ class HacDriver(Hacjpg):
             'speed_error_tolerance': 0.001,
             'speed_max': 1.6,
             'speed_min': 0.15,
+            'speed_uturn': 0.20,
             'speed_update_unit': 0.01,
             'speed_back_limit': -1.0,
             }
@@ -316,7 +317,7 @@ class HacDriver(Hacjpg):
                 """
                 CAUTION: Urgent turn.
                 """
-                self.set_speed(self.spec['speed_min'])
+                self.set_speed(self.spec['speed_uturn'])
                 self.dyn['urgent_turn'] = True
         
         #
@@ -370,7 +371,7 @@ class HacDriver(Hacjpg):
             
         elif self.dyn['urgent_turn'] == True:
             
-            vbsmsg(" *** URGENT TURN CAUTION")
+            vbsmsg(" *** URGENT TURN CAUTION: " + format(self.dyn))
             
             if ri_cpoint_x > ri_img_width_half:
                 # cpoint is at right side
@@ -471,9 +472,9 @@ class HacDriver(Hacjpg):
             """           
             self.set_speed(self.spec['speed_back_limit'])
             
-            if self.dyn['urgent_turn'] == True and self.dyn['urgent_turn_auto_drive'] < 8:
+            if self.dyn['urgent_turn'] == True and self.dyn['urgent_turn_auto_drive'] < 6:
                 self.dyn['urgent_turn_auto_drive'] += 1
-                vbsmsg("Auto turn ctrl")
+                vbsmsg("=== uturn auto ctrl === " + format(self.history[0]))
                 return latest_hist['sta']
             else:
                 return 0.0
