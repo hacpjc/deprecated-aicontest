@@ -194,6 +194,8 @@ class HacDriver(Hacjpg):
         latest_hist = self.history_get(0)
         latest_sta = latest_hist['sta']
         
+        return expect_sta
+        
         diff_unit = (self.spec['sta_max'] / 1000.0)
         
         if expect_sta > 0:
@@ -311,6 +313,9 @@ class HacDriver(Hacjpg):
             if angle_diff < ANGLE_DIFF_THOLD:
                 pass
             else:
+                """
+                CAUTION: Urgent turn.
+                """
                 self.set_speed(self.spec['speed_min'])
                 self.dyn['urgent_turn'] = True
         
@@ -375,7 +380,7 @@ class HacDriver(Hacjpg):
                         |   / o /
                     ____|__/___/
                     """
-                    sta = angle_diff * 2.0
+                    sta = angle_diff if angle_diff < self.spec['sta_max'] else self.spec['sta_max'] 
                     return sta
                 else:
                     """
@@ -400,7 +405,7 @@ class HacDriver(Hacjpg):
                      \ o \    |
                      _\ _\____|
                     """
-                    sta = (angle_diff) * (-2)
+                    sta = ((angle_diff) * (-1)) if angle_diff < self.spec['sta_max'] else (self.spec['sta_max'] * (-1))
                     return sta
             else:
                 return 0
@@ -482,6 +487,9 @@ class HacDriver(Hacjpg):
             self.set_speed_if_negative(self.spec['speed_min'])
             expect_sta = round(self.calc_expect_sta(dashboard), 4)
             vbsmsg("Adjust sta to " + str(expect_sta))
+            if expect_sta > self.spec['sta_max']:
+                errmsg("Invalid sta " + str(expect_sta))
+                
             out_sta = self.calc_sta_simple(dashboard, expect_sta)
             return out_sta
         

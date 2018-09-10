@@ -27,9 +27,9 @@ def errmsg(*argv):
     bt()
     
 def vbsmsg(*argv):
-#     sys.stdout.write("...")
-#     sys.stdout.write("".join(list(argv)) + "\n")
-#     sys.stdout.flush()
+    sys.stdout.write("...")
+    sys.stdout.write("".join(list(argv)) + "\n")
+    sys.stdout.flush()
     pass
 
 from Hacjpg import Hacjpg
@@ -172,7 +172,7 @@ if __name__ == "__main__":
         if dashboard:
             tmp = dict(dashboard)
             del tmp['image']
-            vbsmsg("telemetry: " + format(json.dumps(tmp)))
+#             vbsmsg("telemetry: " + format(json.dumps(tmp)))
         
         car.rx_telemetry(dashboard)
 
