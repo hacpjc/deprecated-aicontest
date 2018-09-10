@@ -49,8 +49,8 @@ class HacDriver(Hacjpg):
             # speed error tolerance
             'speed_error_tolerance': 0.001,
             'speed_max': 1.6,
-            'speed_min': 0.15,
-            'speed_uturn': 0.20,
+            'speed_min': 0.2,
+            'speed_uturn': 0.25,
             'speed_update_unit': 0.01,
             'speed_back_limit': -1.0,
             }
@@ -70,9 +70,10 @@ class HacDriver(Hacjpg):
             'reindeer_map_x': None,
             'reindeer_map_y': None,
             'reindeer_angle': None,
+            'reindeer_cpoint_angel': None,
             'reindeer_img': None,
             # If I have choice, take right-hand road?
-            'road_prefer_right': True,
+            'road_prefer_left': True,
             'road_prefer_rgb': (0, 0, 255),
             # Expected speed
             'speed': 0.1,
@@ -267,16 +268,27 @@ class HacDriver(Hacjpg):
         else:
             return 0
         
-    def is_road_straight(self):
+    def confirm_uturn(self, dashboard):
+        """
+        Detect there's a uturn by camera history
+        """
+        
         pass
          
     def calc_expect_sta(self, dashboard):
+        
+        latest_hist = self.history_get(0)
+        
         ri_map_y, ri_map_x, ri_cpoint, ri_angle = self.dyn['reindeer_map_y'], self.dyn['reindeer_map_x'], self.dyn['reindeer_cpoint'], self.dyn['reindeer_angle']
+        ri_cpoint_angle = self.dyn['reindeer_cpoint_angle']
         
         #
         # angle diff to determin the status of non-strait road
         #
         angle_diff = abs(ri_angle - 90)
+        
+        # hacking
+        ri_cpoint_angle = ((ri_cpoint_angle * 9.0) + (ri_angle - 90)) / 5.0
         
         #
         # Decrease speed while the cpoint is too close.
@@ -291,194 +303,268 @@ class HacDriver(Hacjpg):
         #
         # Increase the speed when I am on road.
         #
-        RI_CPOINT_X_DIFF_THOLD = 60
-        RI_CPOINT_Y_DIFF_THOLD = 40
+        RI_CPOINT_X_DIFF_THOLD = ri_img_width_half / 3.0
+        RI_CPOINT_Y_DIFF_THOLD = (ri_img_height_half - 5)
         ANGLE_DIFF_THOLD = 30 # Cannot > 45
         
         self.dyn['urgent_turn'] = False
         
+        print ("cpoint diff: ", ri_cpoint_x_diff, ri_cpoint_y_diff, ", height: ", ri_img_height, "angle: ", ri_cpoint_angle, ", speed: ", dashboard['speed'])
+        
+        #
+        # Calibrate speed
+        #
         if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD:
+            """
+            cpoint x axis is near.
+            """
             if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
-                if angle_diff < ANGLE_DIFF_THOLD:
-                    self.update_speed_abs(increase=True)
-                else:
-                    self.update_speed_abs(increase=False)
+                """
+                cpoint y axis is far.
+                """
+                self.update_speed_abs(increase=True)
             else:
+                """
+                ??? 
+                """
+                vbsmsg(" *** Caution. Un-expected *** ")
                 self.update_speed_abs(increase=False)
         else:
             """
-            cpoint is far
+            cpoint x axis is far.
             """
-            self.update_speed_abs(increase=False)
-            
-            if angle_diff < ANGLE_DIFF_THOLD:
-                pass
+            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
+                """
+                cpoint y axis is also far. 
+                """
+                self.update_speed_abs(increase=False)
             else:
                 """
-                CAUTION: Urgent turn.
+                CAUTION: uturn
                 """
                 self.set_speed(self.spec['speed_uturn'])
                 self.dyn['urgent_turn'] = True
-        
+                vbsmsg(" *** Caution. uturn ***")
+         
         #
         # Adjust wheel
         #
+#         if ri_cpoint_angle > 0:
+#             if ri_cpoint_angle <= 30:
+#                 return math.sqrt(ri_cpoint_angle) / 2.0
+#             if ri_cpoint_angle <= 45:
+#                 return math.sqrt(ri_cpoint_angle)
+#             else:
+#                 expect_sta = ri_cpoint_angle / 2.8
+#                 return expect_sta
+#                  
+#         elif ri_cpoint_angle < 0:
+#             if ri_cpoint_angle >= -30:
+#                 return math.sqrt(abs(ri_cpoint_angle)) * (-1) / 2.0
+#             elif ri_cpoint_angle >= -45:
+#                 return math.sqrt(abs(ri_cpoint_angle)) * (-1)
+#             else:
+#                 expect_sta = (self.spec['sta_max'] * (-1)) / 2.8
+#                 return expect_sta
+#                     
+#         else:
+#             return 0
+        expect_sta = ri_cpoint_angle
         
-        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD and angle_diff < ANGLE_DIFF_THOLD:
+        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD:
             """
-            Small diff, cpoint near
+            cpoint x axis is near.
             """
-            vbsmsg("cpoint is near")
-            if ri_cpoint_x > ri_img_width_half:
-                # cpoint is at right side
-                if ri_angle > 90:
-                    """
-                        |    /    /
-                        |   / o /
-                    ____|__/___/
-                    """
-                    sta = angle_diff / 10.0
-                    return sta
-                else:
-                    """
-                        |  \   \
-                        |   \ o \
-                    ____|____\___\
-                    """
-                    return math.sqrt(angle_diff) / 2.0
-            elif ri_cpoint_x < ri_img_width_half:
-                # cpoint is at left side
-                if ri_angle > 90:
-                    """
-                      /   /   |
-                     / o /    |
-                    /__/______|
-                    """
-                    sta =  math.sqrt(angle_diff) * (-1)
-                    sta /= 4.0
-                    return sta
-                else:
-                    """
-                    \   \     |
-                     \ o \    |
-                     _\ _\____|
-                    """
-                    sta = (angle_diff / 10.0) * (-1)
-                        
-                    return sta
+            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
+                """
+                cpoint y axis is far.
+                """
+                expect_sta /= 100.0
+                print("x-, y+")
             else:
-                return 0
-            
-        elif self.dyn['urgent_turn'] == True:
-            
-            vbsmsg(" *** URGENT TURN CAUTION: " + format(self.dyn))
-            
-            if ri_cpoint_x > ri_img_width_half:
-                # cpoint is at right side
-                if ri_angle > 90:
-                    """
-                        |    /    /
-                        |   / o /
-                    ____|__/___/
-                    """
-                    sta = angle_diff if angle_diff < self.spec['sta_max'] else self.spec['sta_max'] 
-                    return sta
-                else:
-                    """
-                        |  \   \
-                        |   \ o \
-                    ____|____\___\
-                    """
-                    return math.sqrt(angle_diff)
-            elif ri_cpoint_x < ri_img_width_half:
-                # cpoint is at left side
-                if ri_angle > 90:
-                    """
-                      /   /   |
-                     / o /    |
-                    /__/______|
-                    """
-                    sta =  math.sqrt(angle_diff) * (-1)
-                    return sta
-                else:
-                    """
-                    \   \     |
-                     \ o \    |
-                     _\ _\____|
-                    """
-                    sta = ((angle_diff) * (-1)) if angle_diff < self.spec['sta_max'] else (self.spec['sta_max'] * (-1))
-                    return sta
-            else:
-                return 0
+                """
+                ??? 
+                """
+                expect_sta /= 1.5
+                print("x-, y-")
         else:
             """
-            Big diff, cpoint is far
+            cpoint x axis is far.
             """
-            vbsmsg("cpoint is far")
-            if ri_cpoint_x > ri_img_width_half:
-                # cpoint is at right side
-                if ri_angle > 90:
-                    """
-                        |    /    /
-                        |   / o /
-                    ____|__/___/
-                    """
-                    if angle_diff < 10:
-                        sta = math.sqrt(ri_angle - 90)
-                    else:
-                        sta = angle_diff / 4.0
-                    return sta
-                else:
-                    """
-                        |  \   \
-                        |   \ o \
-                    ____|____\___\
-                    """
-                    return math.sqrt(angle_diff)
-            elif ri_cpoint_x < ri_img_width_half:
-                # cpoint is at left side
-                if ri_angle > 90:
-                    """
-                      /   /   |
-                     / o /    |
-                    /__/______|
-                    """
-                    sta =  math.sqrt(angle_diff) * (-1)
-                    return sta
-                else:
-                    """
-                    \   \     |
-                     \ o \    |
-                     _\ _\____|
-                    """
-                    if angle_diff < 10:
-                        sta = math.sqrt(angle_diff) * (-1)
-                    else:
-                        sta = (angle_diff / 4.0) * (-1)
-                        
-                    return sta
+            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
+                """
+                cpoint y axis is also far. 
+                """
+                expect_sta /= 20.0
+                print("x+, y+")
             else:
-                return 0
+                """
+                CAUTION: uturn
+                """
+                expect_sta /= 1.5
+                print("x+, y-")
+                
+        return expect_sta
+                
+#             
+#         
+#         if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD and angle_diff < ANGLE_DIFF_THOLD:
+#             """
+#             Small diff, cpoint near
+#             """
+#             vbsmsg("cpoint is near")
+#             if ri_cpoint_x > ri_img_width_half:
+#                 # cpoint is at right side
+#                 if ri_angle > 90:
+#                     """
+#                         |    /    /
+#                         |   / o /
+#                     ____|__/___/
+#                     """
+#                     sta = math.sqrt(angle_diff) / 2.0
+#                     return sta
+#                 else:
+#                     """
+#                         |  \   \
+#                         |   \ o \
+#                     ____|____\___\
+#                     """
+#                     return math.sqrt(angle_diff) / 10.0
+#             elif ri_cpoint_x < ri_img_width_half:
+#                 # cpoint is at left side
+#                 if ri_angle > 90:
+#                     """
+#                       /   /   |
+#                      / o /    |
+#                     /__/______|
+#                     """
+#                     sta =  math.sqrt(angle_diff)
+#                     sta /= 10.0
+#                     sta *= (-1)
+#                     return sta
+#                 else:
+#                     """
+#                     \   \     |
+#                      \ o \    |
+#                      _\ _\____|
+#                     """
+#                     sta = (angle_diff / 10.0)
+#                     sta *= (-1)
+#                     return sta
+#             else:
+#                 return 0
+# #             
+# #         elif self.dyn['urgent_turn'] == True or self.dyn['urgent_turn_auto_drive'] < 4:
+# #             
+# #             vbsmsg(" *** URGENT TURN CAUTION: " + format(self.dyn))
+# #             
+# #             if ri_cpoint_x > ri_img_width_half:
+# #                 # cpoint is at right side
+# #                 if ri_angle > 90:
+# #                     """
+# #                         |    /    /
+# #                         |   / o /
+# #                     ____|__/___/
+# #                     """
+# #                     sta = angle_diff if angle_diff < self.spec['sta_max'] else self.spec['sta_max']
+# #                     sta /= 3.0 
+# #                     return sta
+# #                 else:
+# #                     """
+# #                         |  \   \
+# #                         |   \ o \
+# #                     ____|____\___\
+# #                     """
+# #                     return math.sqrt(angle_diff)
+# #             elif ri_cpoint_x < ri_img_width_half:
+# #                 # cpoint is at left side
+# #                 if ri_angle > 90:
+# #                     """
+# #                       /   /   |
+# #                      / o /    |
+# #                     /__/______|
+# #                     """
+# #                     sta =  math.sqrt(angle_diff) * (-1)
+# #                     return sta
+# #                 else:
+# #                     """
+# #                     \   \     |
+# #                      \ o \    |
+# #                      _\ _\____|
+# #                     """
+# #                     sta = ((angle_diff)) if angle_diff < self.spec['sta_max'] else (self.spec['sta_max'])
+# #                     sta *= (-1)
+# #                     sta /= 3.0
+# #                     return sta
+# #             else:
+# #                 return 0
+#         else:
+#             """
+#             Big diff, cpoint is far
+#             """
+#             vbsmsg("cpoint is far")
+#             
+#             if ri_cpoint_x > ri_img_width_half:
+#                 # cpoint is at right side
+#                 if ri_angle > 90:
+#                     """
+#                         |    /    /
+#                         |   / o /
+#                     ____|__/___/
+#                     """
+#                     sta = math.sqrt(angle_diff)
+#                     return sta
+#                 else:
+#                     """
+#                         |  \   \
+#                         |   \ o \
+#                     ____|____\___\
+#                     """
+#                     return math.sqrt(angle_diff) / 2.0
+#             elif ri_cpoint_x < ri_img_width_half:
+#                 # cpoint is at left side
+#                 if ri_angle > 90:
+#                     """
+#                       /   /   |
+#                      / o /    |
+#                     /__/______|
+#                     """
+#                     sta =  math.sqrt(angle_diff) / 2.0
+#                     sta *= (-1)
+#                     return sta
+#                 else:
+#                     """
+#                     \   \     |
+#                      \ o \    |
+#                      _\ _\____|
+#                     """
+#                     sta = math.sqrt(angle_diff)
+#                         
+#                     sta *= (-1)
+#                     return sta
+#             else:
+#                 return 0
             
     def calc_sta(self, dashboard):
         """
         Calculate steering angle (sta). Depend on camera data.
         """
         latest_hist = self.history_get(0)
-        
+
+            
         if self.dyn['reindeer_map_y'] == None:
             """
             Cannot find the road. Do something. plz
             """           
             self.set_speed(self.spec['speed_back_limit'])
-            
-            if self.dyn['urgent_turn'] == True and self.dyn['urgent_turn_auto_drive'] < 6:
+                    
+            if self.dyn['urgent_turn'] == True and self.dyn['urgent_turn_auto_drive'] < 5:
                 self.dyn['urgent_turn_auto_drive'] += 1
                 vbsmsg("=== uturn auto ctrl === " + format(self.history[0]))
-                return latest_hist['sta']
-            else:
-                return 0.0
-            
+                self.set_speed(self.spec['speed_uturn'])
+                return 30 if latest_hist['sta'] > 0 else -30
+        
+            return 0
         else:
             """
             Go forward
@@ -551,7 +637,7 @@ class HacDriver(Hacjpg):
                 else:
                     # Add some brk to improve speed
                     brk_left = self.spec['brk_max'] - latest_brk
-                    brk2add = round(brk_left / 50.0, 4)
+                    brk2add = round(brk_left / 100.0, 4)
                     brk = latest_brk + brk2add
                     return (0.0, brk)
             elif speed_diff < 0:
@@ -574,9 +660,9 @@ class HacDriver(Hacjpg):
         tho, brk = self.calc_tho_fixed_speed(dashboard, expect_speed=self.dyn['speed'])
         
         if brk > 0:
-            return brk * (-1)
+            return round(brk * (-1), 3)
         else:
-            return tho
+            return round(tho, 3)
         
     def camera_task(self, img_in, dashboard):
         """
@@ -591,6 +677,11 @@ class HacDriver(Hacjpg):
         img = self.hacjpg.flatten2rgb(img)
         
         """
+        Now I have a img of road data. Try to identify what is a road and what is not.        
+        """
+#         self.decide_road_prefer_rgb(img, dashboard)
+        
+        """
         Have two points. The angle of the line is.
         angle = 90 - np.rad2deg(np.arctan2(y[-1] - y[0], x[-1] - x[0]))
         
@@ -600,9 +691,18 @@ class HacDriver(Hacjpg):
              | ?  /o <-- cpoint
              |  / 
         _____|/________
+            zero point
         """
-        reindeer = self.hacjpg.reindeer2(img, self.dyn['road_prefer_rgb'])
+
+        reindeer = self.hacjpg.reindeer2(img, self.dyn['road_prefer_rgb'], prefer_left=self.dyn['road_prefer_left'])
         self.dyn['reindeer_map_y'], self.dyn['reindeer_map_x'], self.dyn['reindeer_cpoint'], self.dyn['reindeer_angle'] = reindeer
+        
+        if self.dyn['reindeer_cpoint'] != None:
+            # Calculate the angle from zero point to cpoint, can imagine this is the wheel angle!
+            zero_point = self.hacjpg.get_resolution(img)
+            zero_point = (zero_point[0] / 2.0, zero_point[1]) 
+            cpoint_angle = 90 + self.hacjpg.calc_angle(zero_point, self.dyn['reindeer_cpoint'])
+            self.dyn['reindeer_cpoint_angle'] = cpoint_angle
         
         self.hacjpg.show(img, "reindeer", waitkey=1)
         self.dyn['reindeer_img'] = img

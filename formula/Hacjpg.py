@@ -273,6 +273,57 @@ class Hacjpg():
 
         return img
     
+    def calc_slope(self, st, ed):
+        """
+        Caclulcate the slope of two points.
+        
+        (0,0)
+        v-----------------
+        |
+        |           o ed
+        |         /
+        |       /
+        |_____x______
+             st
+             
+        Plz note that 0,0 is at left + top -- for a img.
+        """
+        x_st, y_st = st
+        x_ed, y_ed = ed
+        
+        x_diff = x_ed - x_st
+        y_diff = y_ed - y_st
+        
+        if y_diff == 0:
+            return 0
+        else:        
+            return x_diff / float(y_diff)
+        
+    def calc_angle(self, st, ed):
+        """
+        Caclulcate the angle of two points.
+        
+        (0,0)
+        v-----------------
+        |
+        |           o ed
+        |         /
+        |       /
+        |_____x______
+             st
+             
+        Plz note that 0,0 is at left + top -- for a img.
+        """
+        x_st, y_st = st
+        x_ed, y_ed = ed
+        
+        x_diff = x_ed - x_st
+        y_diff = y_ed - y_st
+        
+        angle = numpy.rad2deg(numpy.arctan2(y_diff, x_diff))
+        
+        return angle
+    
     def reindeer2(self, img, rgb=(0, 0, 0), prefer_left=True):
         """
         Contest specific calculation. Find the color blocks, calculate the angle.
@@ -356,6 +407,10 @@ class Hacjpg():
             
         central_point_y = int((map_y_uniq[0] + map_y_uniq[-1]) / 2.0)
         central_point_x = int((fit_x[0] + fit_x[-1]) / 2.0)
+        
+        cv2.circle(img, (central_point_x, central_point_y), 3, (255, 255, 255))
+        
+        self.draw_line(img, (width / 2, height), (width / 2, 0), (255, 255, 255), 1)
         
         angle = numpy.rad2deg(numpy.arctan2((map_y_uniq[-1] - map_y_uniq[0]), fit_x[-1] - fit_x[0]))
         
@@ -477,6 +532,8 @@ class Hacjpg():
               
 def unitest_reindeer2(path):
     hacjpg = Hacjpg()
+    
+    print("")
 
     img = hacjpg.open_path(path)
     
@@ -488,7 +545,8 @@ def unitest_reindeer2(path):
     #
     # flatten
     #
-    img = hacjpg.crosscut(img, 0.5, 1.0)
+    img = hacjpg.crosscut(img, 0.55, 1.0)
+    print (hacjpg.get_resolution(img))
 #     hacjpg.show(img, waitkey=0)
     
     img = hacjpg.color_quantization(img)
@@ -499,8 +557,14 @@ def unitest_reindeer2(path):
     
     print (format(hacjpg.get_unique_colors(img)))
     
-    v = hacjpg.reindeer2(img, rgb=(0, 0, 255))
+    v = hacjpg.reindeer2(img, rgb=(0, 0, 255), prefer_left=False)
     print("reindeer2 result: ", v)
+    reso_x, reso_y = hacjpg.get_resolution(img)
+    map_y_uniq, fit_x, cpoint, angle = v
+    if cpoint != None:
+        (central_point_x, central_point_y) = cpoint
+        print(hacjpg.calc_slope((reso_x / 2.0, reso_y), (central_point_x, central_point_y)))
+        print(hacjpg.calc_angle((reso_x / 2.0, reso_y), (central_point_x, central_point_y)) + 90.0)
     
     hacjpg.show(img, waitkey=0)
     ###
@@ -533,6 +597,8 @@ def unitest_reindeer(path):
     
     v = hacjpg.reindeer(img, rgb=(0, 0, 255), prefer_left=True)
     print("reindeer result: ", v)
+    
+    
     
     hacjpg.show(img, waitkey=0)
     ###
