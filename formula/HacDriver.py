@@ -263,6 +263,9 @@ class HacDriver(Hacjpg):
                 return latest_sta
         else:
             return 0
+        
+    def is_road_straight(self):
+        pass
          
     def calc_expect_sta(self, dashboard):
         ri_map_y, ri_map_x, ri_cpoint, ri_angle = self.dyn['reindeer_map_y'], self.dyn['reindeer_map_x'], self.dyn['reindeer_cpoint'], self.dyn['reindeer_angle']
@@ -295,11 +298,10 @@ class HacDriver(Hacjpg):
             if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
                 if angle_diff < ANGLE_DIFF_THOLD:
                     self.update_speed_abs(increase=True)
-                    self.update_speed_abs(increase=True)
                 else:
-                    pass
+                    self.update_speed_abs(increase=False)
             else:
-                self.update_speed_abs(increase=True)
+                self.update_speed_abs(increase=False)
         else:
             """
             cpoint is far
@@ -329,11 +331,7 @@ class HacDriver(Hacjpg):
                         |   / o /
                     ____|__/___/
                     """
-                    if angle_diff < 10:
-                        sta = math.sqrt(ri_angle - 90)
-                        sta /= 2.0
-                    else:
-                        sta = angle_diff / 8.0
+                    sta = angle_diff / 10.0
                     return sta
                 else:
                     """
@@ -341,7 +339,7 @@ class HacDriver(Hacjpg):
                         |   \ o \
                     ____|____\___\
                     """
-                    return math.sqrt(angle_diff)
+                    return math.sqrt(angle_diff) / 2.0
             elif ri_cpoint_x < ri_img_width_half:
                 # cpoint is at left side
                 if ri_angle > 90:
@@ -351,7 +349,7 @@ class HacDriver(Hacjpg):
                     /__/______|
                     """
                     sta =  math.sqrt(angle_diff) * (-1)
-                    sta /= 2.0
+                    sta /= 4.0
                     return sta
                 else:
                     """
@@ -359,11 +357,7 @@ class HacDriver(Hacjpg):
                      \ o \    |
                      _\ _\____|
                     """
-                    if angle_diff < 10:
-                        sta = math.sqrt(angle_diff) * (-1)
-                        sta /= 2.0
-                    else:
-                        sta = (angle_diff / 8.0) * (-1)
+                    sta = (angle_diff / 10.0) * (-1)
                         
                     return sta
             else:
@@ -426,7 +420,7 @@ class HacDriver(Hacjpg):
                     if angle_diff < 10:
                         sta = math.sqrt(ri_angle - 90)
                     else:
-                        sta = angle_diff / 2.0
+                        sta = angle_diff / 4.0
                     return sta
                 else:
                     """
@@ -454,7 +448,7 @@ class HacDriver(Hacjpg):
                     if angle_diff < 10:
                         sta = math.sqrt(angle_diff) * (-1)
                     else:
-                        sta = (angle_diff / 2.0) * (-1)
+                        sta = (angle_diff / 4.0) * (-1)
                         
                     return sta
             else:
@@ -486,7 +480,8 @@ class HacDriver(Hacjpg):
             self.dyn['urgent_turn_auto_drive'] = 0
             
             self.set_speed_if_negative(self.spec['speed_min'])
-            expect_sta = self.calc_expect_sta(dashboard)
+            expect_sta = round(self.calc_expect_sta(dashboard), 4)
+            vbsmsg("Adjust sta to " + str(expect_sta))
             out_sta = self.calc_sta_simple(dashboard, expect_sta)
             return out_sta
         
