@@ -27,9 +27,9 @@ def errmsg(*argv):
     bt()
     
 def vbsmsg(*argv):
-    sys.stdout.write("...")
-    sys.stdout.write("".join(list(argv)) + "\n")
-    sys.stdout.flush()
+#     sys.stdout.write("...")
+#     sys.stdout.write("".join(list(argv)) + "\n")
+#     sys.stdout.flush()
     pass
 
 from Hacjpg import Hacjpg
@@ -52,7 +52,7 @@ class Car(Hacjpg):
         self._emit_func = emit_func
         self.hacjpg = Hacjpg()
         
-        self.driver = driver_object()
+        self.driver = driver_object
         self.is_debug = is_debug
         self.is_auto_reset = is_auto_reset
         self.is_save_img = is_save_img
@@ -163,16 +163,16 @@ if __name__ == "__main__":
     """
     Select a driver to drive!
     """
-    from HacDriver import HacDriver
-    driver = HacDriver(is_debug=True)
-    car = Car(my_emit_func, HacDriver, is_debug=True, is_auto_reset=True, is_save_img=False)
+    from HacDriverII import HacDriverII
+    driver = HacDriverII(is_debug=True)
+    car = Car(my_emit_func, driver, is_debug=True, is_auto_reset=True, is_save_img=False)
 
     @sio.on('telemetry')
     def telemetry(sid, dashboard):
         if dashboard:
             tmp = dict(dashboard)
             del tmp['image']
-#             vbsmsg("telemetry: " + format(json.dumps(tmp)))
+            vbsmsg("telemetry: " + format(json.dumps(tmp)))
         
         car.rx_telemetry(dashboard)
 

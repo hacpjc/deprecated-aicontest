@@ -81,6 +81,16 @@ class Hacjpg():
         cv2.imshow(name, img)
         
         cv2.waitKey(waitkey)
+        
+    def show_nowait(self, img, name="image", scale=1.0):
+        cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
+        cv2.imshow(name, img)
+        
+    def close_window(self, name="image"):
+        cv2.destroyWindow(name)
+        
+    def close_window_all(self):
+        cv2.destroyAllWindows()
             
     def rgb2uint(self, tup):
         """
@@ -109,6 +119,10 @@ class Hacjpg():
         """
         b, g, r = (img.item(y, x, 0), img.item(y, x, 1), img.item(y, x, 2))
         return r, g, b
+    
+    def draw_text(self, img, ascii, pos, rgb=(0, 0, 0)):
+        font = cv2.FONT_HERSHEY_PLAIN
+        cv2.putText(img, ascii, pos, font, 1, rgb);
         
     def print_geometry(self, img):
         """
@@ -303,6 +317,23 @@ class Hacjpg():
 
         return img
     
+    def calc_distance(self, st, ed):
+        """
+        Calculate the distance between two points
+        """
+        if st == None or ed == None:
+            errmsg("Invalid input argument")
+        
+        st_x, st_y = st
+        ed_x, ed_y = ed
+        
+        x_diff = abs(st_x - ed_x)
+        y_diff = abs(st_y - ed_y)
+        
+        distance = round(math.sqrt((x_diff * x_diff) + (y_diff * y_diff)), 4)
+        
+        return distance
+    
     def calc_slope(self, st, ed):
         """
         Caclulcate the slope of two points.
@@ -353,6 +384,107 @@ class Hacjpg():
         angle = numpy.rad2deg(numpy.arctan2(y_diff, x_diff))
         
         return angle
+
+    def reindeer3(self, img, rgb=(0, 0, 0), prefer_left=True):
+        """
+        Contest specific calculation. Find the color blocks, calculate the angle.
+        
+                        Find the line in the middle of a road
+                       V
+        +++++++++++++++++++++++++++
+        +    .        /           .
+        +  .         /          .
+        + .         /         .
+        +          /       .
+        +         /      .
+        +       /      .
+        ++++++++++++++++++++++++ 
+        
+        Then, I can use the angle to find-out how to get wheel angle.
+        
+        x = [8450.0, 8061.0, 7524.0, 7180.0, 8247.0, 8929.0, 8896.0, 9736.0, 9658.0, 9592.0]
+        y = range(len(x))
+        best_fit_line = np.poly1d(np.polyfit(y, x, 1))(y)
+        """
+        width, height = self.get_resolution(img)
+    
+        point_cnt = 0
+        map_y = []
+        map_y_uniq = []
+        map_x = []
+        for y in range(height):
+            is_found = False
+            
+            if prefer_left == True:
+                """
+                Prefer the color block at left-side
+                """
+                for x in range(width):
+                    r, g, b = self.get_pixel_rgb(img, x, y)
+                    
+                    if (r, g, b) == rgb:
+                        point_cnt += 1
+                        map_y.append(y)
+                        map_x.append(x)
+                        
+                        if is_found == False:
+                            is_found = True
+                            map_y_uniq.append(y)
+                    elif is_found == True:
+                        break
+            else:
+                """
+                Prefer the color block at right-side
+                """
+                for x in range(width - 1, -1, -1):
+                    r, g, b = self.get_pixel_rgb(img, x, y)
+                    
+                    if (r, g, b) == rgb:
+                        point_cnt += 1
+                        map_y.append(y)
+                        map_x.append(x)
+                        
+                        if is_found == False:
+                            is_found = True
+                            map_y_uniq.append(y)
+                    elif is_found == True:
+                        break
+                        
+        if len(map_y_uniq) == 0:
+            return None, None, None
+                
+        fit_x = numpy.poly1d(numpy.polyfit(map_y, map_x, 1))(map_y_uniq)
+        fit_x = [int(x) for x in fit_x]
+        
+        for idx in range(len(map_y_uniq)):
+            #
+            # Fix x value if it's out of bound.
+            #
+            if fit_x[idx] >= width:
+                fit_x[idx] = width - 1
+                
+            if fit_x[idx] < 0:
+                fit_x[idx] = 0
+                
+            y, x = map_y_uniq[idx], fit_x[idx]
+            self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
+            
+        central_point_y = int((map_y_uniq[0] + map_y_uniq[-1]) / 2.0)
+        central_point_x = int((fit_x[0] + fit_x[-1]) / 2.0)
+        
+        cv2.circle(img, (central_point_x, central_point_y), 3, (255, 255, 255))
+        
+        self.draw_line(img, (width / 2, height), (width / 2, 0), (255, 255, 255), 1)
+        
+        angle = numpy.rad2deg(numpy.arctan2((map_y_uniq[-1] - map_y_uniq[0]), fit_x[-1] - fit_x[0]))
+        
+        self.draw_text(img, "xxx", (20, 20))
+        
+        #
+        # area percentage
+        #
+        area_percent = int(round(point_cnt / float(width * height), 4) * 100)
+        return (central_point_x, central_point_y), angle, area_percent
     
     def reindeer2(self, img, rgb=(0, 0, 0), prefer_left=True):
         """
@@ -559,7 +691,49 @@ class Hacjpg():
         And use pos avg to identify the position of the road
         """
         return pdiff_avg, output_pos_avg
-              
+    
+def unitest_reindeer3(path):
+    hacjpg = Hacjpg()
+    
+    print("")
+
+    img = hacjpg.open_path(path)
+    
+    #
+    # Input
+    #
+    hacjpg.show(img, waitkey=0)
+    
+    #
+    # flatten
+    #
+    img = hacjpg.crosscut(img, 0.55, 1.0)
+    img = hacjpg.color_quantization(img)
+    img = hacjpg.flatten2rgb(img)
+    reso_x, reso_y = hacjpg.get_resolution(img)
+    
+    print ("color map: ", format(hacjpg.get_unique_colors(img)), "resolution: ", reso_x, reso_y)
+    
+    v = hacjpg.reindeer3(img, rgb=(0, 0, 255), prefer_left=True)
+    print("reindeer2 result: ", v)
+    
+    cpoint, angle, ap = v
+    if cpoint != None:
+        (cx, cy) = cpoint
+        #
+        # These are the major features to define a urgent turn...
+        #
+        print("angle: ", angle)
+        print("cpoint angle: ", hacjpg.calc_angle((reso_x / 2, reso_y), (cx, cy)) + 90)
+        print("distance: ", hacjpg.calc_distance((reso_x / 2, reso_y), (cx, cy)))
+        print("area percentage: ", ap)
+
+    hacjpg.show(img, waitkey=0)
+    ###
+    
+    hacjpg.close(img)
+    
+            
 def unitest_reindeer2(path):
     hacjpg = Hacjpg()
     
@@ -593,51 +767,31 @@ def unitest_reindeer2(path):
     map_y_uniq, fit_x, cpoint, angle = v
     if cpoint != None:
         (central_point_x, central_point_y) = cpoint
-        print(hacjpg.calc_slope((reso_x / 2.0, reso_y), (central_point_x, central_point_y)))
-        print(hacjpg.calc_angle((reso_x / 2.0, reso_y), (central_point_x, central_point_y)) + 90)
+        print("cpoint angle: ", hacjpg.calc_angle((reso_x / 2, reso_y), (central_point_x, central_point_y)) + 90)
+        print("distance: ", hacjpg.calc_distance((reso_x / 2, reso_y), (central_point_x, central_point_y)))
     
     print("column 0 blue pixel: ", hacjpg.calc_column_pixel_num_by_rgb(img, 0, rgb=(0, 0, 255)))
     
     hacjpg.show(img, waitkey=0)
     ###
     
-    hacjpg.close(img) 
-      
-def unitest_reindeer(path):
-    hacjpg = Hacjpg()
-
-    img = hacjpg.open_path(path)
-    
-    #
-    # Input
-    #
-    hacjpg.show(img, waitkey=0)
-    
-    #
-    # flatten
-    #
-    img = hacjpg.crosscut(img, 0.5, 1.0)
-#     hacjpg.show(img, waitkey=0)
-    
-    img = hacjpg.color_quantization(img)
-#     hacjpg.show(img, waitkey=0)
-    
-    img = hacjpg.flatten2rgb(img)
-#     hacjpg.show(img, waitkey=0)
-    
-    print (format(hacjpg.get_unique_colors(img)))
-    
-    v = hacjpg.reindeer(img, rgb=(0, 0, 255), prefer_left=True)
-    print("reindeer result: ", v)
-    
-    hacjpg.show(img, waitkey=0)
-    ###
-    
     hacjpg.close(img)
-  
+    
+def test_distance():
+    
+    hacjpg = Hacjpg()
+    
+    st = (160, 54)
+    ed = (0, 0)
+    d = hacjpg.calc_distance(st, ed)
+    print (d)
+      
 if __name__ == "__main__":
+    
+    test_distance()
+    
     for root, dirs, files in os.walk("./log"):
         path = root.split(os.sep)
         for file in files:
-            unitest_reindeer2("./log/" + file)
+            unitest_reindeer3("./log/" + file)
     
