@@ -50,8 +50,8 @@ class HacDriver(Hacjpg):
             'speed_error_tolerance': 0.001,
             'speed_max': 0.8,
             'speed_min': 0.25,
-            'speed_uturn': 0.5,
-            'speed_turn': 0.6,
+            'speed_uturn': 0.3,
+            'speed_turn': 0.35,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -280,8 +280,98 @@ class HacDriver(Hacjpg):
         max = 10.0
         
         
+    def calc_expect_sta2(self, dashboard):
         
-         
+        latest_hist = self.history_get(0)
+        latest_sta = latest_hist['sta']
+        
+        ri_img = self.dyn['reindeer_img']
+        ri_map_y, ri_map_x, ri_cpoint, ri_angle = self.dyn['reindeer_map_y'], self.dyn['reindeer_map_x'], self.dyn['reindeer_cpoint'], self.dyn['reindeer_angle']
+        ri_cpoint_angle = self.dyn['reindeer_cpoint_angle']
+        
+        #
+        # angle diff to determin the status of non-strait road
+        #
+        angle_diff = abs(ri_angle - 90)
+        
+        # hacking
+        ri_cpoint_angle = ((ri_cpoint_angle * 9.0) + (ri_angle - 90)) / 5.0
+        
+        #
+        # Decrease speed while the cpoint is too close.
+        #
+        ri_cpoint_x, ri_cpoint_y = ri_cpoint
+
+        ri_img_width, ri_img_height = self.hacjpg.get_resolution(ri_img)
+        ri_img_width_half, ri_img_height_half = ri_img_width / 2.0, ri_img_height / 2.0
+        ri_cpoint_y_diff = abs(ri_cpoint_y - ri_img_height)
+        ri_cpoint_x_diff = abs(ri_cpoint_x - ri_img_width_half) 
+
+        #
+        # Increase the speed when I am on road.
+        #
+        RI_CPOINT_X_DIFF_THOLD = ri_img_width_half / 8.0
+        RI_CPOINT_Y_DIFF_THOLD = (ri_img_height_half - 4)
+       
+        print ("cpoint diff: ", ri_cpoint_x_diff, ri_cpoint_y_diff, 
+               "cp-angle: ", self.dyn['reindeer_cpoint_angle'], "cp-angle-final: ", ri_cpoint_angle, 
+               ", speed: ", dashboard['speed'])
+        
+        #
+        # Adjust wheel
+        #
+        expect_sta = self.calibrate_sta(ri_cpoint_angle)
+        
+        if self.confirm_uturn():
+            vbsmsg("*** Detect UTURN ***")
+            self.dyn['uturn'] = True
+            self.set_speed(self.spec['speed_uturn'])
+             
+            return self.calibrate_sta_sqrt(expect_sta) * 2.5
+        else:
+            self.dyn['uturn'] = False
+            
+        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD:
+            """
+            cpoint x axis is near. (x-)
+            """
+            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
+                """
+                cpoint y axis is far. (y+)
+                """
+                expect_sta = self.calibrate_sta_sqrt(expect_sta) / 8.0
+                print("x-, y+")
+                
+                self.update_speed_abs(increase=True)
+            else:
+                """
+                Maybe u-turn
+                """
+                expect_sta = self.calibrate_sta(expect_sta)
+                print("x-, y- *** Caution. Un-expected. Maybe u-turn? ***")
+                self.set_speed(self.spec['speed_uturn'])
+        else:
+            """
+            cpoint x axis is far.
+            """
+            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
+                """
+                cpoint y axis is also far. 
+                """
+                expect_sta = self.calibrate_sta_sqrt(expect_sta)
+                print("x+, y+")
+#                 self.update_speed_abs(increase=False)
+                self.set_speed(self.spec['speed_turn'])
+            else:
+                """
+                CAUTION: uturn
+                """
+                expect_sta = self.calibrate_sta(expect_sta) / 2.0
+                print("x+, y-  *** Caution. uturn ***")
+                self.set_speed(self.spec['speed_uturn'])
+                
+        return expect_sta
+
     def calc_expect_sta(self, dashboard):
         
         latest_hist = self.history_get(0)
@@ -313,25 +403,16 @@ class HacDriver(Hacjpg):
         # Increase the speed when I am on road.
         #
         RI_CPOINT_X_DIFF_THOLD = ri_img_width_half / 8.0
-        RI_CPOINT_Y_DIFF_THOLD = (ri_img_height_half - 8)
+        RI_CPOINT_Y_DIFF_THOLD = (ri_img_height_half - 4)
+        ANGLE_DIFF_THOLD = 30
        
         print ("cpoint diff: ", ri_cpoint_x_diff, ri_cpoint_y_diff, 
-               "cp-angle: ", ri_cpoint_angle, ", speed: ", dashboard['speed'])
+               "cp-angle: ", self.dyn['reindeer_cpoint_angle'], "cp-angle-final: ", ri_cpoint_angle, 
+               ", speed: ", dashboard['speed'])
         
         #
         # Adjust wheel
         #
-        expect_sta = self.calibrate_sta(ri_cpoint_angle)
-        
-        if self.confirm_uturn():
-            vbsmsg("*** UTURN ***")
-            self.dyn['uturn'] = True
-            self.set_speed(self.spec['speed_uturn'])
-             
-            return self.calibrate_sta_sqrt(expect_sta) * 2.5
-        else:
-            self.dyn['uturn'] = False
-            
         if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD:
             """
             cpoint x axis is near. (x-)
@@ -340,17 +421,12 @@ class HacDriver(Hacjpg):
                 """
                 cpoint y axis is far. (y+)
                 """
-                expect_sta = self.calibrate_sta_sqrt(expect_sta) / 10.0
-                print("x-, y+")
-                
                 self.update_speed_abs(increase=True)
             else:
                 """
                 Maybe u-turn
                 """
-                expect_sta = self.calibrate_sta_sqrt(expect_sta) / 2.0
-                print("x-, y- *** Caution. Un-expected. Maybe u-turn? ***")
-                self.set_speed(self.spec['speed_turn'])
+                self.set_speed(self.spec['speed_uturn'])
         else:
             """
             cpoint x axis is far.
@@ -359,27 +435,65 @@ class HacDriver(Hacjpg):
                 """
                 cpoint y axis is also far. 
                 """
-                expect_sta = self.calibrate_sta_sqrt(expect_sta) / 3.0
-                print("x+, y+")
-#                 self.update_speed_abs(increase=False)
                 self.set_speed(self.spec['speed_turn'])
             else:
                 """
                 CAUTION: uturn
                 """
-                expect_sta = self.calibrate_sta_sqrt(expect_sta) / 2.0
-                print("x+, y-  *** Caution. uturn ***")
-                self.set_speed(self.spec['speed_turn'])
+                self.set_speed(self.spec['speed_uturn'])
                 
-        return expect_sta
-                
-#             
-#         
-#         if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD and angle_diff < ANGLE_DIFF_THOLD:
-#             """
-#             Small diff, cpoint near
-#             """
-#             vbsmsg("cpoint is near")
+             
+         
+        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD and angle_diff < ANGLE_DIFF_THOLD:
+            """
+            Small diff, cpoint near
+            """
+            vbsmsg("cpoint is near")
+            if ri_cpoint_x > ri_img_width_half:
+                # cpoint is at right side
+                if ri_angle > 90:
+                    """
+                        |    /    /
+                        |   / o /
+                    ____|__/___/
+                    """
+                    sta = math.sqrt(angle_diff) / 2.0
+                    return sta
+                else:
+                    """
+                        |  \   \
+                        |   \ o \
+                    ____|____\___\
+                    """
+                    return math.sqrt(angle_diff) / 10.0
+            elif ri_cpoint_x < ri_img_width_half:
+                # cpoint is at left side
+                if ri_angle > 90:
+                    """
+                      /   /   |
+                     / o /    |
+                    /__/______|
+                    """
+                    sta =  math.sqrt(angle_diff)
+                    sta /= 10.0
+                    sta *= (-1)
+                    return sta
+                else:
+                    """
+                    \   \     |
+                     \ o \    |
+                     _\ _\____|
+                    """
+                    sta = (angle_diff / 10.0)
+                    sta *= (-1)
+                    return sta
+            else:
+                return 0
+             
+#         elif self.dyn['uturn'] == True or self.dyn['uturn_auto_drive'] < 4:
+#              
+#             vbsmsg(" *** URGENT TURN CAUTION: " + format(self.dyn))
+#              
 #             if ri_cpoint_x > ri_img_width_half:
 #                 # cpoint is at right side
 #                 if ri_angle > 90:
@@ -388,7 +502,8 @@ class HacDriver(Hacjpg):
 #                         |   / o /
 #                     ____|__/___/
 #                     """
-#                     sta = math.sqrt(angle_diff) / 2.0
+#                     sta = angle_diff if angle_diff < self.spec['sta_max'] else self.spec['sta_max']
+#                     sta /= 3.0 
 #                     return sta
 #                 else:
 #                     """
@@ -396,7 +511,7 @@ class HacDriver(Hacjpg):
 #                         |   \ o \
 #                     ____|____\___\
 #                     """
-#                     return math.sqrt(angle_diff) / 10.0
+#                     return math.sqrt(angle_diff)
 #             elif ri_cpoint_x < ri_img_width_half:
 #                 # cpoint is at left side
 #                 if ri_angle > 90:
@@ -405,9 +520,7 @@ class HacDriver(Hacjpg):
 #                      / o /    |
 #                     /__/______|
 #                     """
-#                     sta =  math.sqrt(angle_diff)
-#                     sta /= 10.0
-#                     sta *= (-1)
+#                     sta =  math.sqrt(angle_diff) * (-1)
 #                     return sta
 #                 else:
 #                     """
@@ -415,102 +528,58 @@ class HacDriver(Hacjpg):
 #                      \ o \    |
 #                      _\ _\____|
 #                     """
-#                     sta = (angle_diff / 10.0)
+#                     sta = ((angle_diff)) if angle_diff < self.spec['sta_max'] else (self.spec['sta_max'])
 #                     sta *= (-1)
+#                     sta /= 3.0
 #                     return sta
 #             else:
 #                 return 0
-# #             
-# #         elif self.dyn['uturn'] == True or self.dyn['uturn_auto_drive'] < 4:
-# #             
-# #             vbsmsg(" *** URGENT TURN CAUTION: " + format(self.dyn))
-# #             
-# #             if ri_cpoint_x > ri_img_width_half:
-# #                 # cpoint is at right side
-# #                 if ri_angle > 90:
-# #                     """
-# #                         |    /    /
-# #                         |   / o /
-# #                     ____|__/___/
-# #                     """
-# #                     sta = angle_diff if angle_diff < self.spec['sta_max'] else self.spec['sta_max']
-# #                     sta /= 3.0 
-# #                     return sta
-# #                 else:
-# #                     """
-# #                         |  \   \
-# #                         |   \ o \
-# #                     ____|____\___\
-# #                     """
-# #                     return math.sqrt(angle_diff)
-# #             elif ri_cpoint_x < ri_img_width_half:
-# #                 # cpoint is at left side
-# #                 if ri_angle > 90:
-# #                     """
-# #                       /   /   |
-# #                      / o /    |
-# #                     /__/______|
-# #                     """
-# #                     sta =  math.sqrt(angle_diff) * (-1)
-# #                     return sta
-# #                 else:
-# #                     """
-# #                     \   \     |
-# #                      \ o \    |
-# #                      _\ _\____|
-# #                     """
-# #                     sta = ((angle_diff)) if angle_diff < self.spec['sta_max'] else (self.spec['sta_max'])
-# #                     sta *= (-1)
-# #                     sta /= 3.0
-# #                     return sta
-# #             else:
-# #                 return 0
-#         else:
-#             """
-#             Big diff, cpoint is far
-#             """
-#             vbsmsg("cpoint is far")
-#             
-#             if ri_cpoint_x > ri_img_width_half:
-#                 # cpoint is at right side
-#                 if ri_angle > 90:
-#                     """
-#                         |    /    /
-#                         |   / o /
-#                     ____|__/___/
-#                     """
-#                     sta = math.sqrt(angle_diff)
-#                     return sta
-#                 else:
-#                     """
-#                         |  \   \
-#                         |   \ o \
-#                     ____|____\___\
-#                     """
-#                     return math.sqrt(angle_diff) / 2.0
-#             elif ri_cpoint_x < ri_img_width_half:
-#                 # cpoint is at left side
-#                 if ri_angle > 90:
-#                     """
-#                       /   /   |
-#                      / o /    |
-#                     /__/______|
-#                     """
-#                     sta =  math.sqrt(angle_diff) / 2.0
-#                     sta *= (-1)
-#                     return sta
-#                 else:
-#                     """
-#                     \   \     |
-#                      \ o \    |
-#                      _\ _\____|
-#                     """
-#                     sta = math.sqrt(angle_diff)
-#                         
-#                     sta *= (-1)
-#                     return sta
-#             else:
-#                 return 0
+        else:
+            """
+            Big diff, cpoint is far
+            """
+            vbsmsg("cpoint is far")
+             
+            if ri_cpoint_x > ri_img_width_half:
+                # cpoint is at right side
+                if ri_angle > 90:
+                    """
+                        |    /    /
+                        |   / o /
+                    ____|__/___/
+                    """
+                    sta = math.sqrt(angle_diff)
+                    return sta
+                else:
+                    """
+                        |  \   \
+                        |   \ o \
+                    ____|____\___\
+                    """
+                    return math.sqrt(angle_diff) / 2.0
+            elif ri_cpoint_x < ri_img_width_half:
+                # cpoint is at left side
+                if ri_angle > 90:
+                    """
+                      /   /   |
+                     / o /    |
+                    /__/______|
+                    """
+                    sta =  math.sqrt(angle_diff) / 2.0
+                    sta *= (-1)
+                    return sta
+                else:
+                    """
+                    \   \     |
+                     \ o \    |
+                     _\ _\____|
+                    """
+                    sta = math.sqrt(angle_diff)
+                         
+                    sta *= (-1)
+                    return sta
+            else:
+                return 0
             
     def calc_sta(self, dashboard):
         """
@@ -539,7 +608,7 @@ class HacDriver(Hacjpg):
             self.dyn['uturn_auto_drive'] = 0
             
             self.set_speed_if_negative(self.spec['speed_min'])
-            expect_sta = round(self.calc_expect_sta(dashboard), 4)
+            expect_sta = round(self.calc_expect_sta2(dashboard), 4)
 
             if expect_sta > self.spec['sta_max']:
                 vbsmsg("Invalid sta " + str(expect_sta))
@@ -564,7 +633,8 @@ class HacDriver(Hacjpg):
         speed_diff = abs(expect_speed) - latest_hist['speed']
         
         if self.dyn['uturn'] == True:
-            return (0.001, 0.0) # TBD
+            if expect_speed > 0:
+                return (0.001, 0.0) # TBD
         
         if expect_speed > 0:
             """

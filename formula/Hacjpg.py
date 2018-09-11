@@ -587,7 +587,7 @@ def unitest_reindeer2(path):
     
     print (format(hacjpg.get_unique_colors(img)))
     
-    v = hacjpg.reindeer2(img, rgb=(0, 0, 255), prefer_left=False)
+    v = hacjpg.reindeer2(img, rgb=(0, 0, 255), prefer_left=True)
     print("reindeer2 result: ", v)
     reso_x, reso_y = hacjpg.get_resolution(img)
     map_y_uniq, fit_x, cpoint, angle = v
