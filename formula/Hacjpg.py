@@ -217,6 +217,36 @@ class Hacjpg():
         
         return res2
     
+    def calc_column_pixel_num_by_rgb(self, img, x, rgb):
+        """
+        +---------------+
+        |       r       |
+        |       r       |
+        |       b       |
+        |       g       |
+        +---------------+
+        
+        Calculate the number of a specific color.
+        
+        Output:
+        number of r = 2
+        """
+        
+        width, height = self.get_resolution(img)
+        
+        if x >= width or x < 0:
+            errmsg("Invalid input argument x: ", format(x))
+            
+        num = 0
+        for y in range(height):
+            this_rgb = self.get_pixel_rgb(img, x, y)
+            
+            if this_rgb == rgb:
+                num += 1
+               
+        return num 
+        
+    
     def crosscut(self, img, ratio_from, ratio_to):
         """
         +---------------+
@@ -564,7 +594,9 @@ def unitest_reindeer2(path):
     if cpoint != None:
         (central_point_x, central_point_y) = cpoint
         print(hacjpg.calc_slope((reso_x / 2.0, reso_y), (central_point_x, central_point_y)))
-        print(hacjpg.calc_angle((reso_x / 2.0, reso_y), (central_point_x, central_point_y)) + 90.0)
+        print(hacjpg.calc_angle((reso_x / 2.0, reso_y), (central_point_x, central_point_y)) + 90)
+    
+    print("column 0 blue pixel: ", hacjpg.calc_column_pixel_num_by_rgb(img, 0, rgb=(0, 0, 255)))
     
     hacjpg.show(img, waitkey=0)
     ###
@@ -597,8 +629,6 @@ def unitest_reindeer(path):
     
     v = hacjpg.reindeer(img, rgb=(0, 0, 255), prefer_left=True)
     print("reindeer result: ", v)
-    
-    
     
     hacjpg.show(img, waitkey=0)
     ###
