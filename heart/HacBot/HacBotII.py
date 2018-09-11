@@ -1,4 +1,3 @@
-
 from PokerBot import PokerBot, system_log, Card, Htapi
 
 class HacBotII(PokerBot, Htapi):
@@ -270,16 +269,27 @@ class HacBotII(PokerBot, Htapi):
         
         if my_hand_cards == None or len(my_hand_cards) == 0:
             return output
+        
+        #
+        # TODO: Be smarter... calculate shoot-moon ability, or anti-score ability
+        # If I know I won't take any score, expose AH!
+        # If I want to shoot the moon, expose AH!
+        # 
                 
         # Calculate the rate that I will get penalty...
         # The simplest calculation is to check if I have too many big-rank cards
-        big_card_num = self.htapi.find_cards(my_hand_cards, self.big_rank_cards)
-        if big_card_num > (len(self.big_rank_cards) / 3):
-            # Too many big-rank cards...Give up expose.
+        my_big_cards = self.htapi.find_cards(my_hand_cards, self.big_rank_cards)
+        my_big_card_num = len(my_big_cards)
+        if my_big_card_num > 2 and my_big_card_num < 5:
+            """
+            Have some but not many high-rank.
+            """
             return output
-            
-        output = ['AH']
         
+        #        
+        # Expose AH!
+        #
+        output = ['AH']
         return output
 
     def expose_cards_end(self, data):
