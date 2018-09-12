@@ -73,7 +73,7 @@ class Hacjpg():
     def close(self, jpg):
         del jpg
     
-    def show(self, img, name = "image", scale = 1.0, waitkey = 1):
+    def show(self, img, name="image", waitkey=1):
         """
         Display the img in a standalone window.
         """
@@ -82,7 +82,7 @@ class Hacjpg():
         
         cv2.waitKey(waitkey)
         
-    def show_nowait(self, img, name="image", scale=1.0):
+    def show_nowait(self, img, name="image"):
         cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
         cv2.imshow(name, img)
         
@@ -298,24 +298,40 @@ class Hacjpg():
         return output
     
     def flatten2rgb(self, img):
-        width, height = self.get_resolution(img)
-        for x in range(0, width):
-            for y in range(0, height):
-                r, g, b = self.get_pixel_rgb(img, x, y)
-                if (r >= 200) and (g >= 200) and (b >= 200):
-                    self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
-                elif (r < 50) and (g < 50) and (b < 50):
-                    self.set_pixel_rgb(img, x, y, rgb=(0, 0, 0))
-                elif (r >= 120) and (g < 150) and (b < 150):
-                    self.set_pixel_rgb(img, x, y, rgb=(255, 0, 0))
-                elif (r < 150) and (g >= 120) and (b < 150):
-                    self.set_pixel_rgb(img, x, y, rgb=(0, 255, 0))
-                elif (r < 150) and (g < 150) and (b >= 120):
-                    self.set_pixel_rgb(img, x, y, rgb=(0, 0, 255))
-                else:
-                    self.set_pixel_rgb(img, x, y, rgb=(0, 0, 0))
+        r, g, b = cv2.split(img)
+        r_filter = (r == numpy.maximum(numpy.maximum(r, g), b)) & (r >= 120) & (g < 150) & (b < 150)
+        g_filter = (g == numpy.maximum(numpy.maximum(r, g), b)) & (g >= 120) & (r < 150) & (b < 150)
+        b_filter = (b == numpy.maximum(numpy.maximum(r, g), b)) & (b >= 120) & (r < 150) & (g < 150)
+        y_filter = ((r >= 128) & (g >= 128) & (b < 100))
 
-        return img
+        r[y_filter], g[y_filter] = 255, 255
+        b[numpy.invert(y_filter)] = 0
+
+        b[b_filter], b[numpy.invert(b_filter)] = 255, 0
+        r[r_filter], r[numpy.invert(r_filter)] = 255, 0
+        g[g_filter], g[numpy.invert(g_filter)] = 255, 0
+
+        flattened = cv2.merge((r, g, b))
+        return flattened
+#         width, height = self.get_resolution(img)
+#         for x in range(0, width):
+#             for y in range(0, height):
+#                 r, g, b = self.get_pixel_rgb(img, x, y)
+#                 if (r >= 200) and (g >= 200) and (b >= 200):
+#                     self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
+#                 elif (r < 50) and (g < 50) and (b < 50):
+#                     self.set_pixel_rgb(img, x, y, rgb=(0, 0, 0))
+#                 elif (r >= 120) and (g < 150) and (b < 150):
+#                     self.set_pixel_rgb(img, x, y, rgb=(255, 0, 0))
+#                 elif (r < 150) and (g >= 120) and (b < 150):
+#                     print ("green=", format((r,g,b)))
+#                     self.set_pixel_rgb(img, x, y, rgb=(0, 255, 0))
+#                 elif (r < 150) and (g < 150) and (b >= 120):
+#                     self.set_pixel_rgb(img, x, y, rgb=(0, 0, 255))
+#                 else:
+#                     self.set_pixel_rgb(img, x, y, rgb=(0, 0, 0))
+# 
+#         return img
     
     def calc_distance(self, st, ed):
         """
@@ -477,8 +493,6 @@ class Hacjpg():
         self.draw_line(img, (width / 2, height), (width / 2, 0), (255, 255, 255), 1)
         
         angle = numpy.rad2deg(numpy.arctan2((map_y_uniq[-1] - map_y_uniq[0]), fit_x[-1] - fit_x[0]))
-        
-        self.draw_text(img, "xxx", (20, 20))
         
         #
         # area percentage
@@ -708,10 +722,10 @@ def unitest_reindeer3(path):
     # flatten
     #
     img = hacjpg.crosscut(img, 0.55, 1.0)
-    img = hacjpg.color_quantization(img)
-    img = hacjpg.flatten2rgb(img)
     reso_x, reso_y = hacjpg.get_resolution(img)
-    
+
+#     img = hacjpg.color_quantization(img)
+    img = hacjpg.flatten2rgb(img)
     print ("color map: ", format(hacjpg.get_unique_colors(img)), "resolution: ", reso_x, reso_y)
     
     v = hacjpg.reindeer3(img, rgb=(0, 0, 255), prefer_left=True)
@@ -733,50 +747,6 @@ def unitest_reindeer3(path):
     
     hacjpg.close(img)
     
-            
-def unitest_reindeer2(path):
-    hacjpg = Hacjpg()
-    
-    print("")
-
-    img = hacjpg.open_path(path)
-    
-    #
-    # Input
-    #
-    hacjpg.show(img, waitkey=0)
-    
-    #
-    # flatten
-    #
-    img = hacjpg.crosscut(img, 0.55, 1.0)
-    print (hacjpg.get_resolution(img))
-#     hacjpg.show(img, waitkey=0)
-    
-    img = hacjpg.color_quantization(img)
-#     hacjpg.show(img, waitkey=0)
-    
-    img = hacjpg.flatten2rgb(img)
-#     hacjpg.show(img, waitkey=0)
-    
-    print (format(hacjpg.get_unique_colors(img)))
-    
-    v = hacjpg.reindeer2(img, rgb=(0, 0, 255), prefer_left=True)
-    print("reindeer2 result: ", v)
-    reso_x, reso_y = hacjpg.get_resolution(img)
-    map_y_uniq, fit_x, cpoint, angle = v
-    if cpoint != None:
-        (central_point_x, central_point_y) = cpoint
-        print("cpoint angle: ", hacjpg.calc_angle((reso_x / 2, reso_y), (central_point_x, central_point_y)) + 90)
-        print("distance: ", hacjpg.calc_distance((reso_x / 2, reso_y), (central_point_x, central_point_y)))
-    
-    print("column 0 blue pixel: ", hacjpg.calc_column_pixel_num_by_rgb(img, 0, rgb=(0, 0, 255)))
-    
-    hacjpg.show(img, waitkey=0)
-    ###
-    
-    hacjpg.close(img)
-    
 def test_distance():
     
     hacjpg = Hacjpg()
@@ -788,10 +758,9 @@ def test_distance():
       
 if __name__ == "__main__":
     
-    test_distance()
-    
     for root, dirs, files in os.walk("./log"):
         path = root.split(os.sep)
         for file in files:
+            print ("...path: ./log/" + file)
             unitest_reindeer3("./log/" + file)
     

@@ -49,12 +49,12 @@ class HacDriverII(Hacjpg):
             'sta_max': 40,
             'sta_min': -40,
             # history
-            'history_max': 8,
+            'history_max': 16,
             # speed error tolerance
             'speed_max': 0.8,
-            'speed_min': 0.25,
-            'speed_uturn': 0.3,
-            'speed_turn': 0.45,
+            'speed_min': 0.4,
+            'speed_uturn': 0.4,
+            'speed_turn': 0.4,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -317,10 +317,10 @@ class HacDriverII(Hacjpg):
         #
         # Output
         # 
-        out_sta = self.calc_expect_sta2(dashboard)
-#         out_sta = ri_cpoint_angle
-#         out_sta = self.calibrate_sta(out_sta)
-#         out_sta = self.calibrate_sta_sqrt(out_sta)
+#         out_sta = self.calc_expect_sta2(dashboard)
+        out_sta = ri_cpoint_angle
+        out_sta = self.calibrate_sta(out_sta)
+        out_sta = self.calibrate_sta_sqrt(out_sta)
         print("    angle: ", ri_cpoint_angle, out_sta)
 
         #
@@ -331,9 +331,9 @@ class HacDriverII(Hacjpg):
         # sta calibrate - If concussion rate is large. Decrease sta
         # Range: 0.0 ~ 1.0  
         #
-#         factor = (1.2 - concussion_rate)
-#         out_sta *= factor
-#         print ("    concussion rate: ", concussion_rate, out_sta)
+        factor = (1.0 - math.sqrt(concussion_rate))
+        out_sta *= factor 
+        print ("    concussion rate: ", concussion_rate, out_sta)
         
         #
         # sta calibrate - area, if the area is small, the road is far. Unlock sta
@@ -341,9 +341,9 @@ class HacDriverII(Hacjpg):
         # Usually 75% in normal road. If it's < 50%, take care.
         #
         if ri_area_percent < 70:
-            factor = 120.0 / float(1 + ri_area_percent)
+            factor = 100.0 / float(1 + ri_area_percent)
         else:
-            factor = 60.0 / float(1 + ri_area_percent)
+            factor = 50.0 / float(1 + ri_area_percent)
             
         out_sta *= factor
         print("    area: ", ri_area_percent, out_sta)
@@ -351,14 +351,15 @@ class HacDriverII(Hacjpg):
         #
         # Speed management
         #
-#         if out_sta <= 2:
-#             self.update_speed_abs(increase=True)
-#         elif out_sta > 15:
-#             self.set_speed(self.spec['speed_uturn'])
-#         elif out_sta > 6:
-#             self.set_speed(self.spec['speed_turn'])
-#         else:
-#             pass
+        if out_sta <= 1:
+            self.update_speed_abs(increase=True)
+        else:
+            if out_sta > 6:
+                self.set_speed(self.spec['speed_uturn'])
+            elif out_sta > 3:
+                self.set_speed(self.spec['speed_turn'])
+            else:
+                self.set_speed(0.5)
         
         return self.calibrate_sta(out_sta)
         
@@ -590,7 +591,7 @@ class HacDriverII(Hacjpg):
         img = copy.deepcopy(img_in)
         
         img = self.hacjpg.crosscut(img, 0.55, 1.0)
-        img = self.hacjpg.color_quantization(img)
+#         img = self.hacjpg.color_quantization(img)
         img = self.hacjpg.flatten2rgb(img)
         
         """
