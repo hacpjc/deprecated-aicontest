@@ -54,7 +54,7 @@ class HacDriverII(Hacjpg):
             'speed_max': 0.8,
             'speed_min': 0.25,
             'speed_uturn': 0.3,
-            'speed_turn': 0.35,
+            'speed_turn': 0.45,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -318,8 +318,9 @@ class HacDriverII(Hacjpg):
         # Output
         # 
         out_sta = self.calc_expect_sta2(dashboard)
-#         out_sta = self.calibrate_sta(out_sta) / 4.0
-#         out_sta = self.calibrate_sta_sqrt(out_sta) 
+#         out_sta = ri_cpoint_angle
+#         out_sta = self.calibrate_sta(out_sta)
+#         out_sta = self.calibrate_sta_sqrt(out_sta)
         print("    angle: ", ri_cpoint_angle, out_sta)
 
         #
@@ -339,11 +340,10 @@ class HacDriverII(Hacjpg):
         #
         # Usually 75% in normal road. If it's < 50%, take care.
         #
-        
-        if ri_area_percent <= 50:
-            factor = 100.0 / float(1 + ri_area_percent)
+        if ri_area_percent < 70:
+            factor = 120.0 / float(1 + ri_area_percent)
         else:
-            factor = 40.0 / float(1 + ri_area_percent)
+            factor = 60.0 / float(1 + ri_area_percent)
             
         out_sta *= factor
         print("    area: ", ri_area_percent, out_sta)
@@ -527,7 +527,7 @@ class HacDriverII(Hacjpg):
                     Urgent brake (ABS)
                     """
                     vbsmsg("ABS brake")
-                    brk = self.spec['brk_max']
+                    brk = self.spec['brk_min']
                     return (0.0, brk)
                 
                 tho = round(latest_tho * 3 / 4.0, 4)
