@@ -466,7 +466,7 @@ class Hacjpg():
                     elif is_found == True:
                         break
                         
-        if len(map_y_uniq) == 0:
+        if len(map_y_uniq) < 2:
             return None, None, None
                 
         fit_x = numpy.poly1d(numpy.polyfit(map_y, map_x, 1))(map_y_uniq)

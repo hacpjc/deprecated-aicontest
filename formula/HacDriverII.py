@@ -39,9 +39,9 @@ class HacDriverII(Hacjpg):
         #
         self.spec = {
             # Throttle -1.0 ~ 1.0. brk 1.0 means throttle -1.0
-            'tho_max': 0.5,
+            'tho_max': 0.4,
             'tho_min': 0.0,
-            'tho_unit': 0.0015,
+            'tho_unit': 0.001,
             'brk_max': 0.6,
             'brk_min': 0.0,
             'brk_unit': 0.0015,
@@ -51,10 +51,10 @@ class HacDriverII(Hacjpg):
             # history
             'history_max': 16,
             # speed error tolerance
-            'speed_max': 1.2,
-            'speed_min': 0.5,
-            'speed_uturn': 0.5,
-            'speed_turn': 0.6,
+            'speed_max': 1.1,
+            'speed_min': 0.6,
+            'speed_uturn': 0.7,
+            'speed_turn': 0.75,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -80,7 +80,7 @@ class HacDriverII(Hacjpg):
             'road_prefer_left': False,
             'road_prefer_rgb': (0, 0, 255),
             # Expected speed
-            'speed': 0.1,
+            'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
             'uturn': False,
             'uturn_auto_drive': 0,
@@ -299,7 +299,6 @@ class HacDriverII(Hacjpg):
               zero point
         """
         
-        
         zero_point = self.hacjpg.get_resolution(self.dyn['ri_img'])
         zero_point = (zero_point[0] / 2, zero_point[1])
         
@@ -315,13 +314,11 @@ class HacDriverII(Hacjpg):
         concussion_rate = self.history_get_sta_concussion_rate(self.spec['history_max'])
         
         #
-        # Output
+        # sta calibrate - cpoint angle (-90 ~ 90). The most effective information.
         # 
-#         out_sta = self.calc_expect_sta2(dashboard)
         out_sta = ri_cpoint_angle
         out_sta = self.calibrate_sta(out_sta)
         out_sta = self.calibrate_sta_sqrt(out_sta)
-        print("    angle: ", ri_cpoint_angle, out_sta)
 
         #
         # sta calibrate - speed (TBD) 
@@ -331,120 +328,48 @@ class HacDriverII(Hacjpg):
         # sta calibrate - If concussion rate is large. Decrease sta
         # Range: 0.0 ~ 1.0  
         #
+        # This can help to reduce left-right-left-right wheel concussion.
+        #
         factor = (1.0 - math.sqrt(concussion_rate))
         out_sta *= factor 
-        print ("    concussion rate: ", concussion_rate, out_sta)
         
         #
         # sta calibrate - area, if the area is small, the road is far. Unlock sta
         #
         # Usually 75% in normal road. If it's < 50%, take care.
         #
-        if ri_area_percent < 70:
-            factor = 120.0 / float(1 + ri_area_percent)
+        if ri_area_percent < 50:
+            factor = 250.0 / float(1 + ri_area_percent)
+        elif ri_area_percent < 70:
+            factor = 180.0 / float(1 + ri_area_percent)
+        elif ri_area_percent < 75:
+            factor = 150.0 / float(1 + ri_area_percent)
         else:
-            factor = 60.0 / float(1 + ri_area_percent)
+            factor = 80.0 / float(1 + ri_area_percent)
             
         out_sta *= factor
-        print("    area: ", ri_area_percent, out_sta)
         
         #
         # Speed management
         #
-        if out_sta <= 1:
+        if ri_area_percent >= 72:
+            # Wheel stable
             self.update_speed_abs(increase=True)
+            if abs(self.dyn['ri_angle'] - 90) < 10:
+                # Possibly in strait road. Raise speed.
+                self.update_speed_abs(increase=True)
+        elif ri_area_percent >= 65:
+            # Turn
+            self.update_speed_abs(increase=False)
+        elif ri_area_percent >= 50:
+            # Turn
+            self.set_speed(self.spec['speed_turn'])
         else:
-            if out_sta > 6:
-                self.set_speed(self.spec['speed_uturn'])
-            elif out_sta > 3:
-                self.set_speed(self.spec['speed_turn'])
-            else:
-                self.set_speed(0.5)
+            # Urgent turn
+            self.set_speed(self.spec['speed_uturn'])
         
         return self.calibrate_sta(out_sta)
         
-    def calc_expect_sta2(self, dashboard):
-        
-        latest_hist = self.history_get(0)
-        latest_sta = latest_hist['sta']
-        
-        ri_img = self.dyn['ri_img']
-        ri_cpoint, ri_angle = self.dyn['ri_cpoint'], self.dyn['ri_angle']
-        ri_cpoint_angle = self.dyn['ri_cpoint_angle']
-        
-        #
-        # angle diff to determin the status of non-strait road
-        #
-        angle_diff = abs(ri_angle - 90)
-        
-        # hacking
-        ri_cpoint_angle = ((ri_cpoint_angle * 9.0) + (ri_angle - 90)) / 5.0
-        
-        #
-        # Decrease speed while the cpoint is too close.
-        #
-        ri_cpoint_x, ri_cpoint_y = ri_cpoint
-
-        ri_img_width, ri_img_height = self.hacjpg.get_resolution(ri_img)
-        ri_img_width_half, ri_img_height_half = ri_img_width / 2.0, ri_img_height / 2.0
-        ri_cpoint_y_diff = abs(ri_cpoint_y - ri_img_height)
-        ri_cpoint_x_diff = abs(ri_cpoint_x - ri_img_width_half) 
-
-        #
-        # Increase the speed when I am on road.
-        #
-        RI_CPOINT_X_DIFF_THOLD = ri_img_width_half / 8.0
-        RI_CPOINT_Y_DIFF_THOLD = (ri_img_height_half - 4)
-       
-        print ("cpoint diff: ", ri_cpoint_x_diff, ri_cpoint_y_diff, 
-               "cp-angle: ", self.dyn['ri_cpoint_angle'], "cp-angle-final: ", ri_cpoint_angle, 
-               ", speed: ", dashboard['speed'])
-        
-        #
-        # Adjust wheel
-        #
-        expect_sta = self.calibrate_sta(ri_cpoint_angle)
-        
-        if ri_cpoint_x_diff <= RI_CPOINT_X_DIFF_THOLD:
-            """
-            cpoint x axis is near. (x-)
-            """
-            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
-                """
-                cpoint y axis is far. (y+)
-                """
-                expect_sta = self.calibrate_sta_sqrt(expect_sta) / 8.0
-                print("x-, y+")
-                
-                self.update_speed_abs(increase=True)
-            else:
-                """
-                Maybe u-turn
-                """
-                expect_sta = self.calibrate_sta(expect_sta)
-                print("x-, y- *** Caution. Un-expected. Maybe u-turn? ***")
-                self.set_speed(self.spec['speed_uturn'])
-        else:
-            """
-            cpoint x axis is far.
-            """
-            if ri_cpoint_y_diff > RI_CPOINT_Y_DIFF_THOLD:
-                """
-                cpoint y axis is also far. 
-                """
-                expect_sta = self.calibrate_sta_sqrt(expect_sta)
-                print("x+, y+")
-#                 self.update_speed_abs(increase=False)
-                self.set_speed(self.spec['speed_turn'])
-            else:
-                """
-                CAUTION: uturn
-                """
-                expect_sta = self.calibrate_sta(expect_sta) / 2.0
-                print("x+, y-  *** Caution. uturn ***")
-                self.set_speed(self.spec['speed_uturn'])
-                
-        return expect_sta
 
             
     def calc_sta(self, dashboard):
@@ -477,7 +402,6 @@ class HacDriverII(Hacjpg):
             
             self.set_speed_if_negative(self.spec['speed_min'])
             expect_sta = round(self.calc_expect_sta3(dashboard), 4)
-#             expect_sta = round(self.calc_expect_sta2(dashboard), 4)
             if expect_sta > self.spec['sta_max']:
                 vbsmsg("Invalid sta " + str(expect_sta))
                 expect_sta = self.spec['sta_max']
