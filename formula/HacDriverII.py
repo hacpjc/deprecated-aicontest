@@ -51,10 +51,10 @@ class HacDriverII(Hacjpg):
             # history
             'history_max': 16,
             # speed error tolerance
-            'speed_max': 1.1,
-            'speed_min': 0.7,
-            'speed_uturn': 0.7,
-            'speed_turn': 0.75,
+            'speed_max': 1.10,
+            'speed_min': 0.60,
+            'speed_uturn': 0.68,
+            'speed_turn': 0.72,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -455,7 +455,7 @@ class HacDriverII(Hacjpg):
                     brk = self.spec['brk_min']
                     return (0.0, brk)
                 
-                tho = round(latest_tho * 3 / 4.0, 4)
+                tho = round((latest_tho * 3) / 4.0, 4)
                 return (tho, 0.0)
             else:
                 return (latest_tho, 0.0)
@@ -479,7 +479,7 @@ class HacDriverII(Hacjpg):
                 """
                 Too fast. Try to decrease brk
                 """
-                brk = round(latest_brk * 3 / 4.0, 4)
+                brk = round((latest_brk * 3) / 4.0, 4)
                 return (0.0, brk)
             else:
                 return (0.0, latest_brk)
