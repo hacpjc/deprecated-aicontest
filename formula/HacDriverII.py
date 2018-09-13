@@ -41,20 +41,20 @@ class HacDriverII(Hacjpg):
             # Throttle -1.0 ~ 1.0. brk 1.0 means throttle -1.0
             'tho_max': 0.5,
             'tho_min': 0.0,
-            'tho_unit': 0.001,
+            'tho_unit': 0.0015,
             'brk_max': 0.6,
             'brk_min': 0.0,
-            'brk_unit': 0.001,
+            'brk_unit': 0.0015,
             # Steering angle -40 ~ 40 degree
             'sta_max': 40,
             'sta_min': -40,
             # history
             'history_max': 16,
             # speed error tolerance
-            'speed_max': 0.8,
-            'speed_min': 0.4,
-            'speed_uturn': 0.4,
-            'speed_turn': 0.4,
+            'speed_max': 1.2,
+            'speed_min': 0.5,
+            'speed_uturn': 0.5,
+            'speed_turn': 0.6,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -77,7 +77,7 @@ class HacDriverII(Hacjpg):
             'ri_area_percent': 0,
             'ri_img': None,
             # If I have choice, take right-hand road?
-            'road_prefer_left': True,
+            'road_prefer_left': False,
             'road_prefer_rgb': (0, 0, 255),
             # Expected speed
             'speed': 0.1,
@@ -341,9 +341,9 @@ class HacDriverII(Hacjpg):
         # Usually 75% in normal road. If it's < 50%, take care.
         #
         if ri_area_percent < 70:
-            factor = 100.0 / float(1 + ri_area_percent)
+            factor = 120.0 / float(1 + ri_area_percent)
         else:
-            factor = 50.0 / float(1 + ri_area_percent)
+            factor = 60.0 / float(1 + ri_area_percent)
             
         out_sta *= factor
         print("    area: ", ri_area_percent, out_sta)
