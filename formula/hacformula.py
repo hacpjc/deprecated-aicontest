@@ -164,8 +164,8 @@ if __name__ == "__main__":
     Select a driver to drive!
     """
     from HacDriverII import HacDriverII
-    driver = HacDriverII(is_debug=True)
-    car = Car(my_emit_func, driver, is_debug=True, is_auto_reset=True, is_save_img=False)
+    driver = HacDriverII(is_debug=False)
+    car = Car(my_emit_func, driver, is_debug=False, is_auto_reset=True, is_save_img=False)
 
     @sio.on('telemetry')
     def telemetry(sid, dashboard):
