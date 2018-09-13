@@ -52,7 +52,7 @@ class HacDriverII(Hacjpg):
             'history_max': 16,
             # speed error tolerance
             'speed_max': 1.1,
-            'speed_min': 0.6,
+            'speed_min': 0.7,
             'speed_uturn': 0.7,
             'speed_turn': 0.75,
             'speed_update_unit': 0.015,
@@ -343,7 +343,7 @@ class HacDriverII(Hacjpg):
         elif ri_area_percent < 70:
             factor = 180.0 / float(1 + ri_area_percent)
         elif ri_area_percent < 75:
-            factor = 150.0 / float(1 + ri_area_percent)
+            factor = 120.0 / float(1 + ri_area_percent)
         else:
             factor = 80.0 / float(1 + ri_area_percent)
             
@@ -515,7 +515,6 @@ class HacDriverII(Hacjpg):
         img = copy.deepcopy(img_in)
         
         img = self.hacjpg.crosscut(img, 0.55, 1.0)
-#         img = self.hacjpg.color_quantization(img)
         img = self.hacjpg.flatten2rgb(img)
         
         """
