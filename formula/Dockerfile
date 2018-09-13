@@ -1,10 +1,14 @@
 # Use an official Python runtime as a parent image
-FROM python:2.7-slim
+FROM ubuntu:18.04
  
 # Set the working directory to /app
 WORKDIR /app
  
 # Install the python package we need
+RUN apt update
+RUN apt install -y python-pip
+RUN export DEBIAN_FRONTEND=noninteractive; apt install -y tzdata
+RUN apt install -y python-opencv
 #RUN pip install --trusted-host pypi.python.org websocket-client==0.7.0 uptime logging flask-socketio  eventlet opencv-python pillow numpy pandas
 RUN pip install --trusted-host pypi.python.org numpy eventlet flask-socketio pillow opencv-python pandas 
 
