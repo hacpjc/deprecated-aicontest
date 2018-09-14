@@ -51,7 +51,7 @@ class HacDriverII(Hacjpg):
             # history
             'history_max': 16,
             # speed error tolerance
-            'speed_max': 1.10,
+            'speed_max': 1.05,
             'speed_min': 0.60,
             'speed_uturn': 0.68,
             'speed_turn': 0.72,
