@@ -84,13 +84,13 @@ class HacDriverII(Hacjpg):
             'ri_area_percent': 0,
             'ri_img': None,
             # If I have choice, take right-hand road?
-            'road_prefer_left': False,
+            'road_prefer_left': True,
             'road_prefer_rgb': (0, 0, 255),
+            'sta-manual-ctrl': 0,
+            'sta-manual-angle': 0.0,
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
-            'uturn': False,
-            'uturn_auto_drive': 0,
             }
         
     def _init_traffic_sign(self):
@@ -426,29 +426,21 @@ class HacDriverII(Hacjpg):
         """
         Calculate steering angle (sta). Depend on camera data.
         """
+        if self.dyn['sta-manual-ctrl'] > 0:
+            self.dyn['sta-manual-ctrl'] -= 1
+            return self.dyn['sta-manual-angle']
+        
         if self.dyn['ri_cpoint'] == None:
             """
             Cannot find the road. Do something. plz
             """
             self.set_speed(self.spec['speed_back_limit'])
-                    
-            if self.dyn['uturn'] == True and self.dyn['uturn_auto_drive'] < 5:
-                prev_history = self.history_get(1)
-                if prev_history != None:
-                    """
-                    Try to follow the previous sta. This can help the car to maintain correct direction. 
-                    """
-                    self.dyn['uturn_auto_drive'] += 1
-                    vbsmsg(" * WARNING: uturn auto ctrl" + format(self.history[0]))
-                    self.set_speed(self.spec['speed_uturn'])
-                    return self.spec['sta_max'] if prev_history['sta'] > 0 else self.spec['sta_min']
         
             return 0.0
         else:
             """
             Go forward
             """
-            self.dyn['uturn_auto_drive'] = 0
             
             self.set_speed_if_negative(self.spec['speed_min'])
             expect_sta = round(self.calc_expect_sta3(dashboard), 4)
@@ -602,7 +594,32 @@ class HacDriverII(Hacjpg):
                 errmsg("XXX")
                 
             self.dyn['ri_cpoint_distance'] = self.hacjpg.calc_distance(zero_point, self.dyn['ri_cpoint'])
+          
+    def gotoleft(self):
+#         self.dyn['road_prefer_left'] = True
+#         
+#         self.set_speed(self.spec['speed_min'])
+#         
+#         self.dyn['sta-manual-ctrl'] = 8
+#         self.dyn['sta-manual-angle'] = -5
+        pass
+
+    def gotoright(self):
+#         self.dyn['road_prefer_left'] = False
+#         
+#         self.set_speed(self.spec['speed_min'])
+#         
+#         self.dyn['sta-manual-ctrl'] = 8
+#         self.dyn['sta-manual-angle'] = 5
+        pass
+    
+    def camera_task_follow_action(self, action):
         
+        if action == 'left':
+            self.gotoleft()
+        elif action == 'right':
+            self.gotoright()
+    
     def camera_task_traffic_sign(self):
         """
         Detect traffic sign
@@ -610,14 +627,25 @@ class HacDriverII(Hacjpg):
         img = self.img
         outputs = self.hactsd.detect_traffic_sign(img)
         if len(outputs) > 0:
-            print(outputs, ", action: " + self.traffic_sign[outputs[0]['name']]['action'])
+            top_output = outputs[0]
+            top_output_name = top_output['name']
+            action = self.traffic_sign[top_output_name]['action']
+            print(top_output, ", action: " + action)
+            
+            self.camera_task_follow_action(action)
         
     def camera_task(self, img, dashboard):
         self.img = img
         self.dashboard = dashboard
         
+        #
+        # Analyze road data. Find direction.
+        #
         self.camera_task_reindeer()
         
+        #
+        # Detect traffic sign
+        #
         self.camera_task_traffic_sign()
     
     def try2drive(self, img, dashboard):
@@ -641,7 +669,7 @@ class HacDriverII(Hacjpg):
         ed = time.time()
         time_diff = round(ed - st, 3)
         if time_diff > 0.8:
-            msg("long response time: ", round(ed - st, 3))
+            msg("long response time: ", format(round(ed - st, 3)))
         
         #
         # Calculate sta to maintain direction.
