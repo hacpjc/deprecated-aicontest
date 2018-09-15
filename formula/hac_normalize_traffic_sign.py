@@ -1,10 +1,16 @@
 import sys, os
+import base64
 from Hacjpg import Hacjpg
 
+def print_base64_encode(path):
+    with open(path, "rb") as image_file:
+        str = base64.b64encode(image_file.read())
+        print str
 
 def normalize_traffic_sign(path):
     hacjpg = Hacjpg()
     
+    print_base64_encode(path)
     img = hacjpg.open_path(path)
     
     # Resize to 50x25, usually can fit.
