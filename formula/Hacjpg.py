@@ -103,6 +103,7 @@ class Hacjpg():
     def show_nowait(self, img, name="image"):
         cv2.namedWindow(name, cv2.WINDOW_AUTOSIZE)
         cv2.imshow(name, img)
+        cv2.waitKey(1)
         
     def close_window(self, name="image"):
         cv2.destroyWindow(name)
@@ -464,6 +465,19 @@ class Hacjpg():
         angle = numpy.rad2deg(numpy.arctan2(y_diff, x_diff))
         
         return angle
+    
+    def reindeer3_draw_stat(self, img, reindeer):
+        width, height = self.get_resolution(img)
+        
+        central_point, angle, area_percent = reindeer
+        if central_point == None:
+            return
+        else:
+            central_point_x, central_point_y = central_point
+        
+        cv2.circle(img, (central_point_x, central_point_y), 3, (255, 255, 255))
+        self.draw_line(img, (width / 2, height), (width / 2, 0), (255, 255, 255), 1)
+        
 
     def reindeer3(self, img, rgb=(0, 0, 0), prefer_left=True):
         """
@@ -547,15 +561,11 @@ class Hacjpg():
                 fit_x[idx] = 0
                 
             y, x = map_y_uniq[idx], fit_x[idx]
-            self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
+#             self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
             
         central_point_y = int((map_y_uniq[0] + map_y_uniq[-1]) / 2.0)
         central_point_x = int((fit_x[0] + fit_x[-1]) / 2.0)
-        
-        cv2.circle(img, (central_point_x, central_point_y), 3, (255, 255, 255))
-        
-        self.draw_line(img, (width / 2, height), (width / 2, 0), (255, 255, 255), 1)
-        
+                
         angle = numpy.rad2deg(numpy.arctan2((map_y_uniq[-1] - map_y_uniq[0]), fit_x[-1] - fit_x[0]))
         
         #
@@ -864,48 +874,7 @@ class Hacjpg():
             img = img[:, 0:new_width]
         
         return img
-        
-def unitest_reindeer3(path):
-    hacjpg = Hacjpg()
-    
-    print("")
 
-    img = hacjpg.open_path(path)
-    
-    #
-    # Input
-    #
-    hacjpg.show(img, waitkey=0)
-    
-    #
-    # flatten
-    #
-    img = hacjpg.crosscut(img, 0.55, 1.0)
-    reso_x, reso_y = hacjpg.get_resolution(img)
-
-#     img = hacjpg.color_quantization(img)
-    img = hacjpg.flatten2rgb(img)
-    print ("color map: ", format(hacjpg.get_unique_colors(img)), "resolution: ", reso_x, reso_y)
-    
-    v = hacjpg.reindeer3(img, rgb=(0, 0, 255), prefer_left=True)
-    print("reindeer2 result: ", v)
-    
-    cpoint, angle, ap = v
-    if cpoint != None:
-        (cx, cy) = cpoint
-        #
-        # These are the major features to define a urgent turn...
-        #
-        print("angle: ", angle)
-        print("cpoint angle: ", hacjpg.calc_angle((reso_x / 2, reso_y), (cx, cy)) + 90)
-        print("distance: ", hacjpg.calc_distance((reso_x / 2, reso_y), (cx, cy)))
-        print("area percentage: ", ap)
-
-    hacjpg.show(img, waitkey=0)
-    ###
-    
-    hacjpg.close(img)
-    
 class HacTrafficSignDetection(Hacjpg):
     def __init__(self, scale=(50, 25)):
         self.hacjpg = Hacjpg()
@@ -1170,27 +1139,6 @@ class HacTrafficSignDetection(Hacjpg):
         
         output = func(img)
         
-#         stat = 0
-#         for y in range(height - self.spec['detect_height_min']):
-#             for x in range(width):
-#                 rgb = self.get_pixel_rgb(img, x, y)
-#                 # Handle with non-white pixel
-#                 if rgb != (255, 255, 255):
-#                     stat += 1
-#                     square = self.fetch_square(img, x, y, width, height)
-#                     if square == None:
-#                         continue
-#                     elif (square[0] - x) < self.spec['detect_width_min'] or (square[1] - y) < self.spec['detect_height_min']:
-#                         continue
-#                     
-#                     object = img[y:square[1], x:square[0], :]
-#                     new_output = func(object)
-#                     if new_output != None:
-#                         output.append(new_output)
-# #                     img = self.filter_out_square(img, x, y, square[0] - x, square[1] - y)
-#                     
-#                     print (stat)
-#                     return output
         return output
 
     def _detect_traffic_sign(self, subimg):
@@ -1262,6 +1210,60 @@ class HacTrafficSignDetection(Hacjpg):
         img = self.hacjpg.open_path(path)
         
         return self.detect_traffic_sign(img)
+        
+def unitest_reindeer3(path):
+    hacjpg = Hacjpg()
+    
+    print("")
+
+    img = hacjpg.open_path(path)
+    
+    #
+    # Input
+    #
+    hacjpg.show_nowait(img, name="input")
+    
+    #
+    # flatten
+    #
+    img = hacjpg.crosscut(img, 0.55, 1.0)
+    reso_x, reso_y = hacjpg.get_resolution(img)
+    img = hacjpg.resize(img, reso_x / 2, reso_y / 2)
+    reso_x, reso_y = hacjpg.get_resolution(img)
+
+#     img = hacjpg.color_quantization(img)
+    img = hacjpg.flatten2rgb(img)
+    print ("color map: ", format(hacjpg.get_unique_colors(img)), "resolution: ", reso_x, reso_y)
+    
+    prefer_rgb = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    for rgb in prefer_rgb:
+        v = hacjpg.reindeer3(img, rgb=rgb, prefer_left=True)
+        print("reindeer3 result: ", v)
+    
+        cpoint, angle, ap = v
+        if cpoint != None:
+            (cx, cy) = cpoint
+            #
+            # These are the major features to define a urgent turn...
+            #
+            print("angle: ", angle)
+            print("cpoint angle: ", hacjpg.calc_angle((reso_x / 2, reso_y), (cx, cy)) + 90)
+            print("distance: ", hacjpg.calc_distance((reso_x / 2, reso_y), (cx, cy)))
+            print("area percentage: ", ap)
+
+        hacjpg.show(img, "result", waitkey=0)
+    
+    hacjpg.close(img)
+    
+def unitest_traffic_sign(path):
+    st = time.time()
+    res = htsd.detect_traffic_sign_by_path("./log/" + "img-20180915-232427-276000.jpg")
+    ed = time.time()
+    if res != None:
+        print(res, ", proc time: ", round(ed - st, 3))
+        
+    if (ed - st) > 0.15:
+        print("long proc time: ", round(ed - st, 3))
     
 if __name__ == "__main__":
     htsd = HacTrafficSignDetection((50, 25))
@@ -1272,25 +1274,10 @@ if __name__ == "__main__":
             print ("...path: " + file)
             htsd.add_traffic_sign_by_path("./traffic-sign-input/" + file, name=None)
 
-    def show_traffic_sign(ts):
-        hacjpg = Hacjpg()
-        hacjpg.show(ts['img'], "traffic-sign", waitkey=0)
-    
-#     htsd.walk_traffic_sign(show_traffic_sign)
-    
-    st = time.time()
-    res = htsd.detect_traffic_sign_by_path("./log/" + "img-20180915-232427-276000.jpg")
-    ed = time.time()
-    print (res, "time: ", ed - st)
     for root, dirs, files in os.walk("./log"):
         path = root.split(os.sep)
         for file in files:
-            st = time.time()
-            res = htsd.detect_traffic_sign_by_path("./log/" + file)
-            ed = time.time()
-            if res != None:
-                print(res)
-            if ed - st > 0.15:
-                print(res, "time: ", round(ed - st, 3), "...path: " + file)
+#             unitest_traffic_sign("./log/" + file)
+            unitest_reindeer3("./log/" + file)
         
     

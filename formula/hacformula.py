@@ -56,6 +56,9 @@ class Car(Hacjpg):
         self.is_debug = is_debug
         self.is_auto_reset = is_auto_reset
         self.is_save_img = is_save_img
+        
+        if self.is_save_img == True:
+            msg(" * NOTE: img backup mode is on.")
 
     def rx_telemetry(self, dashboard):
         self._dashboard = dashboard
@@ -142,7 +145,6 @@ class Car(Hacjpg):
             'throttle': str(data['throttle']) 
             }
         self._emit_func('steer', output, skip_sid=True)
-
         
     def tx_restart(self):
         """
@@ -164,7 +166,7 @@ if __name__ == "__main__":
     Select a driver to drive!
     """
     from HacDriverII import HacDriverII
-    driver = HacDriverII(is_debug=False)
+    driver = HacDriverII(is_debug=True)
     car = Car(my_emit_func, driver, is_debug=False, is_auto_reset=True, is_save_img=False)
 
     @sio.on('telemetry')

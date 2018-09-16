@@ -55,6 +55,8 @@ class HacDriverII(Hacjpg):
             # Steering angle -40 ~ 40 degree
             'sta_max': 40,
             'sta_min': -40,
+            'sta-manual-ctrl': 10,
+            'sta-manual-angle': 6,
             # history
             'history_max': 16,
             # speed error tolerance
@@ -85,8 +87,9 @@ class HacDriverII(Hacjpg):
             'ri_img': None,
             # If I have choice, take right-hand road?
             'road_prefer_left': True,
-            'road_prefer_rgb': (0, 0, 255),
+            'road_prefer_rgb': [(0, 0, 255), (255, 0, 0), (0, 255, 0)],
             'sta-manual-ctrl': 0,
+            'sta-manual-angle': 0,
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
@@ -429,6 +432,9 @@ class HacDriverII(Hacjpg):
             self.dyn['sta-manual-ctrl'] -= 1
             if self.dyn['sta-manual-ctrl'] == 0:
                 self.goforward()
+            else:
+                angle = self.dyn['sta-manual-angle'] / (self.spec['sta-manual-ctrl'] / self.dyn['sta-manual-ctrl'])
+                return self.calibrate_sta(angle)
         
         if self.dyn['ri_cpoint'] == None:
             """
@@ -555,8 +561,16 @@ class HacDriverII(Hacjpg):
         
         img = copy.deepcopy(self.img)
         
+        # Cut top half to remove useless data
         img = self.hacjpg.crosscut(img, 0.55, 1.0)
+        
+        # Reduce size to increase performance
+        width, height = self.hacjpg.get_resolution(img)
+        img = self.hacjpg.resize(img, width / 2, height / 2)
+        
+        # Normalize color to reduce the problem
         img = self.hacjpg.flatten2rgb(img)
+#         self.hacjpg.show(img, 'reindeer', waitkey=1)
         
         """
         Have two points. The angle of the line is.
@@ -570,18 +584,28 @@ class HacDriverII(Hacjpg):
         _____|/________
             zero point
         """
-        reindeer = self.hacjpg.reindeer3(img, self.dyn['road_prefer_rgb'], prefer_left=self.dyn['road_prefer_left'])
-        self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent'] = reindeer
+        self.dyn['ri_cpoint'] = None
+        for prefer_rgb in self.dyn['road_prefer_rgb']:
+            reindeer = self.hacjpg.reindeer3(img, rgb=prefer_rgb, prefer_left=self.dyn['road_prefer_left'])
+            self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent'] = reindeer
         
-        self.dyn['ri_img'] = img
-        
+            self.dyn['ri_img'] = img
+            
+            if self.dyn['ri_cpoint'] != None:
+                break
+            else:
+                vbsmsg("rindeer retry: ", format(prefer_rgb))
+            
         if self.is_debug == True:
             img_dbg = copy.deepcopy(img)
+            
+            self.hacjpg.reindeer3_draw_stat(img_dbg, reindeer)
+            
             self.hacjpg.draw_text(img_dbg, format(latest_hist['speed']), (0, 12), rgb=(255, 255, 255))
             self.hacjpg.draw_text(img_dbg, format(latest_hist['sta']), (0, 24), rgb=(255, 255, 255))
             self.hacjpg.draw_text(img_dbg, format(latest_hist['tho']), (0, 36), rgb=(255, 255, 255))
             
-            self.hacjpg.show_nowait(img_dbg, "reindeer")
+            self.hacjpg.show_nowait(img_dbg, name="reindeer")
         
         if self.dyn['ri_cpoint'] != None:
             # Calculate the angle from zero point to cpoint, can imagine this is the wheel angle!
@@ -594,35 +618,44 @@ class HacDriverII(Hacjpg):
                 errmsg("XXX")
                 
             self.dyn['ri_cpoint_distance'] = self.hacjpg.calc_distance(zero_point, self.dyn['ri_cpoint'])
+        else:
+            msg("CAUTION: lost")
+            
           
     def gotoleft(self):
         self.set_speed(self.spec['speed_min'])
          
-        self.dyn['sta-manual-ctrl'] = 8
-        self.dyn['road_prefer_rgb'] = (255, 0, 0)
+        self.dyn['sta-manual-ctrl'] = self.spec['sta-manual-ctrl']
+        self.dyn['sta-manual-angle'] = (-1) * self.spec['sta-manual-angle']
+        # R -> G -> B
+        self.dyn['road_prefer_rgb'] = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
         self.dyn['road_prefer_left'] = True
         pass
 
     def gotoright(self):
         self.set_speed(self.spec['speed_min'])
-         
-        self.dyn['sta-manual-ctrl'] = 8
-        self.dyn['road_prefer_rgb'] = (0, 255, 0)
+        
+        self.dyn['sta-manual-ctrl'] = self.spec['sta-manual-ctrl']
+        self.dyn['sta-manual-angle'] = self.spec['sta-manual-angle']
+        # G -> R -> B
+        self.dyn['road_prefer_rgb'] = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]
         self.dyn['road_prefer_left'] = False
         pass
     
     def goforward(self):
-        print ("recover")
         self.dyn['sta-manual-ctrl'] = 0
-        self.dyn['road_prefer_rgb'] = (0, 0, 255)
         
         #
         # Swap back the preference to origional state.
         #
         if self.dyn['road_prefer_left'] == True:
-            self.dyn['road_prefer_left'] = False
+            # B -> R -> G
+            self.dyn['road_prefer_rgb'] = [(0, 0, 255), (255, 0, 0), (0, 255, 0)]
+            vbsmsg("Recover back to prefer-left")
         else:
-            self.dyn['road_prefer_left'] = True
+            # B -> G -> R
+            self.dyn['road_prefer_rgb'] = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
+            vbsmsg("Recover back to prefer-right")
             
         pass        
     
