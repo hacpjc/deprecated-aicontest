@@ -89,6 +89,7 @@ class HacDriverII(Hacjpg):
             'road_prefer_rgb': [(0, 0, 255), (255, 0, 0), (0, 255, 0)],
             'road_fixing': False,
             'tho_manual_ctrl': 0.0,
+            'sta_manual_ctrl': 0.0,
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
@@ -463,6 +464,10 @@ class HacDriverII(Hacjpg):
         """
         Calculate steering angle (sta). Depend on camera data.
         """
+        if self.dyn['sta_manual_ctrl'] != 0.0:
+            self.dyn['sta_manual_ctrl'] = 0.0
+            return self.dyn['sta_manual_ctrl']
+        
         if self.dyn['ri_cpoint'] == None:
             """
             Cannot find the road. Do something. plz
