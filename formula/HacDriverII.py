@@ -87,7 +87,6 @@ class HacDriverII(Hacjpg):
             'road_prefer_left': True,
             'road_prefer_rgb': (0, 0, 255),
             'sta-manual-ctrl': 0,
-            'sta-manual-angle': 0.0,
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
@@ -428,7 +427,8 @@ class HacDriverII(Hacjpg):
         """
         if self.dyn['sta-manual-ctrl'] > 0:
             self.dyn['sta-manual-ctrl'] -= 1
-            return self.dyn['sta-manual-angle']
+            if self.dyn['sta-manual-ctrl'] == 0:
+                self.goforward()
         
         if self.dyn['ri_cpoint'] == None:
             """
@@ -596,22 +596,35 @@ class HacDriverII(Hacjpg):
             self.dyn['ri_cpoint_distance'] = self.hacjpg.calc_distance(zero_point, self.dyn['ri_cpoint'])
           
     def gotoleft(self):
-#         self.dyn['road_prefer_left'] = True
-#         
-#         self.set_speed(self.spec['speed_min'])
-#         
-#         self.dyn['sta-manual-ctrl'] = 8
-#         self.dyn['sta-manual-angle'] = -5
+        self.set_speed(self.spec['speed_min'])
+         
+        self.dyn['sta-manual-ctrl'] = 8
+        self.dyn['road_prefer_rgb'] = (255, 0, 0)
+        self.dyn['road_prefer_left'] = True
         pass
 
     def gotoright(self):
-#         self.dyn['road_prefer_left'] = False
-#         
-#         self.set_speed(self.spec['speed_min'])
-#         
-#         self.dyn['sta-manual-ctrl'] = 8
-#         self.dyn['sta-manual-angle'] = 5
+        self.set_speed(self.spec['speed_min'])
+         
+        self.dyn['sta-manual-ctrl'] = 8
+        self.dyn['road_prefer_rgb'] = (0, 255, 0)
+        self.dyn['road_prefer_left'] = False
         pass
+    
+    def goforward(self):
+        print ("recover")
+        self.dyn['sta-manual-ctrl'] = 0
+        self.dyn['road_prefer_rgb'] = (0, 0, 255)
+        
+        #
+        # Swap back the preference to origional state.
+        #
+        if self.dyn['road_prefer_left'] == True:
+            self.dyn['road_prefer_left'] = False
+        else:
+            self.dyn['road_prefer_left'] = True
+            
+        pass        
     
     def camera_task_follow_action(self, action):
         
@@ -625,9 +638,8 @@ class HacDriverII(Hacjpg):
         Detect traffic sign
         """
         img = self.img
-        outputs = self.hactsd.detect_traffic_sign(img)
-        if len(outputs) > 0:
-            top_output = outputs[0]
+        top_output = self.hactsd.detect_traffic_sign(img)
+        if top_output != None:
             top_output_name = top_output['name']
             action = self.traffic_sign[top_output_name]['action']
             print(top_output, ", action: " + action)
@@ -668,7 +680,7 @@ class HacDriverII(Hacjpg):
         self.camera_task(img, dashboard)
         ed = time.time()
         time_diff = round(ed - st, 3)
-        if time_diff > 0.8:
+        if time_diff > 0.2:
             msg("long response time: ", format(round(ed - st, 3)))
         
         #

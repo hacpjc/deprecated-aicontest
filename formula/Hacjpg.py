@@ -1,4 +1,4 @@
-import sys, traceback, os, random, math
+import sys, traceback, os, random, math, time
 import json
 import copy
   
@@ -1120,7 +1120,7 @@ class HacTrafficSignDetection(Hacjpg):
                     forgive_mode = False
                     if y < height - self.spec['error_tolerance']:
                         for yy in range(y + 1, y + self.spec['error_tolerance']):
-                             
+                              
                             yyrgb = self.get_pixel_rgb(img, x, yy)
                             if yyrgb != (255, 255, 255):
                                 forgive_mode = True
@@ -1162,29 +1162,35 @@ class HacTrafficSignDetection(Hacjpg):
         """
         Walk the img, find object and execute func
         """
-        output = []
+        output = None
         
         width, height = self.hacjpg.get_resolution(img)
+        if height < self.spec['detect_height_min']:
+            return output
         
-        for y in range(height - self.spec['detect_height_min']):
-            for x in range(width):
-                rgb = self.get_pixel_rgb(img, x, y)
-                # Handle with non-white pixel
-                if rgb != (255, 255, 255):
-                    square = self.fetch_square(img, x, y, width, height)
-                    if square == None:
-                        continue
-                    elif (square[0] - x) < self.spec['detect_width_min'] or (square[1] - y) < self.spec['detect_height_min']:
-                        continue
-                    
-                    object = img[y:square[1], x:square[0], :]
-                    new_output = func(object)
-                    if new_output != None:
-                        output.append(new_output)
-#                     img = self.filter_out_square(img, x, y, square[0] - x, square[1] - y)
-                    
-                    return output
-                    
+        output = func(img)
+        
+#         stat = 0
+#         for y in range(height - self.spec['detect_height_min']):
+#             for x in range(width):
+#                 rgb = self.get_pixel_rgb(img, x, y)
+#                 # Handle with non-white pixel
+#                 if rgb != (255, 255, 255):
+#                     stat += 1
+#                     square = self.fetch_square(img, x, y, width, height)
+#                     if square == None:
+#                         continue
+#                     elif (square[0] - x) < self.spec['detect_width_min'] or (square[1] - y) < self.spec['detect_height_min']:
+#                         continue
+#                     
+#                     object = img[y:square[1], x:square[0], :]
+#                     new_output = func(object)
+#                     if new_output != None:
+#                         output.append(new_output)
+# #                     img = self.filter_out_square(img, x, y, square[0] - x, square[1] - y)
+#                     
+#                     print (stat)
+#                     return output
         return output
 
     def _detect_traffic_sign(self, subimg):
@@ -1195,11 +1201,10 @@ class HacTrafficSignDetection(Hacjpg):
         #
         # Preprocessing - Remove surronding black
         #
-        subimg = self.hacjpg.remove_surronding_color(subimg, rgb=(255, 0, 0))
         
-        height, width = self.get_resolution(subimg)
-        if height == 0 or width == 0:
-            return None
+#         height, width = self.get_resolution(subimg)
+#         if height == 0 or width == 0:
+#             return None
 
         subimg = self.resize(subimg, self.spec['scale'][0], self.spec['scale'][1])
         
@@ -1233,25 +1238,20 @@ class HacTrafficSignDetection(Hacjpg):
         
         Output: A list of matched traffic sign data.
         """
-#         import time
         
-#         st = time.time()
         #
         # Input pre-processing
         #
         img_crosscut = self.hacjpg.crosscut(img, 0, 0.35)
-        img_cut = self.hacjpg.cut(img_crosscut, 0.3, 0.7)
+        img_cut = self.hacjpg.cut(img_crosscut, 0.2, 0.8)
+        img_cut = self.hacjpg.color_quantization(img_cut)
         img_flatten = self.hacjpg.flatten2rgb_white(img_cut)
-#         mid = time.time()
+        img_minimize = self.hacjpg.remove_surronding_color(img_flatten, rgb=(255, 0, 0))
+        
         #
         # Try to find traffic sign object and execute func
         #
-        output = self.walk_object(img_flatten, self._detect_traffic_sign)
-        
-#         ed = time.time()
-        
-#         print(ed - st, mid - st)
-        
+        output = self.walk_object(img_minimize, self._detect_traffic_sign)
         return output
     
     def detect_traffic_sign_by_path(self, path):
@@ -1264,7 +1264,6 @@ class HacTrafficSignDetection(Hacjpg):
         return self.detect_traffic_sign(img)
     
 if __name__ == "__main__":
-    
     htsd = HacTrafficSignDetection((50, 25))
     
     for root, dirs, files in os.walk("./traffic-sign-input"):
@@ -1279,13 +1278,19 @@ if __name__ == "__main__":
     
 #     htsd.walk_traffic_sign(show_traffic_sign)
     
-    res = htsd.detect_traffic_sign_by_path("./log/" + "img-20180912-223137-664000.jpg")
-    print (res)
+    st = time.time()
+    res = htsd.detect_traffic_sign_by_path("./log/" + "img-20180915-232427-276000.jpg")
+    ed = time.time()
+    print (res, "time: ", ed - st)
     for root, dirs, files in os.walk("./log"):
         path = root.split(os.sep)
         for file in files:
-            print ("...path: " + file)
+            st = time.time()
             res = htsd.detect_traffic_sign_by_path("./log/" + file)
-            print(res)
+            ed = time.time()
+            if res != None:
+                print(res)
+            if ed - st > 0.15:
+                print(res, "time: ", round(ed - st, 3), "...path: " + file)
         
     
