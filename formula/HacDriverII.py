@@ -46,7 +46,7 @@ class HacDriverII(Hacjpg):
         #
         self.spec = {
             # Throttle -1.0 ~ 1.0. brk 1.0 means throttle -1.0
-            'tho_max': 0.4,
+            'tho_max': 0.5,
             'tho_min': 0.0,
             'tho_unit': 0.001,
             'brk_max': 0.6,
@@ -56,7 +56,7 @@ class HacDriverII(Hacjpg):
             'sta_max': 40,
             'sta_min': -40,
             # history
-            'history_max': 16,
+            'history_max': 10,
             # speed error tolerance
             'speed_max': 0.9,
             'speed_min': 0.60,

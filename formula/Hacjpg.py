@@ -1330,7 +1330,7 @@ class HacTrafficSignDetection(Hacjpg):
         # Input pre-processing
         #
         img_crosscut = self.hacjpg.crosscut(img, 0, 0.35)
-        img_cut = self.hacjpg.cut(img_crosscut, 0.2, 0.8)
+        img_cut = self.hacjpg.cut(img_crosscut, 0.25, 0.75)
         img_cut = self.hacjpg.color_quantization(img_cut)
         img_flatten = self.hacjpg.flatten2rgb_white(img_cut)
         img_minimize = self.hacjpg.remove_surronding_color(img_flatten, rgb=(255, 0, 0))
