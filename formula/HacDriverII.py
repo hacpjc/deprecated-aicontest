@@ -51,19 +51,17 @@ class HacDriverII(Hacjpg):
             'tho_unit': 0.001,
             'brk_max': 0.6,
             'brk_min': 0.0,
-            'brk_unit': 0.0015,
+            'brk_unit': 0.01,
             # Steering angle -40 ~ 40 degree
             'sta_max': 40,
             'sta_min': -40,
-            'sta-manual-ctrl': 10,
-            'sta-manual-angle': 6,
             # history
             'history_max': 16,
             # speed error tolerance
-            'speed_max': 1.05,
+            'speed_max': 0.9,
             'speed_min': 0.60,
-            'speed_uturn': 0.68,
-            'speed_turn': 0.72,
+            'speed_uturn': 0.60,
+            'speed_turn': 0.65,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -84,17 +82,20 @@ class HacDriverII(Hacjpg):
             'ri_cpoint_angle': None,
             'ri_cpoint_distance': 0,
             'ri_area_percent': 0,
+            'ri_area_percent_all': None,
             'ri_img': None,
             # If I have choice, take right-hand road?
             'road_prefer_left': True,
             'road_prefer_rgb': [(0, 0, 255), (255, 0, 0), (0, 255, 0)],
-            'sta-manual-ctrl': 0,
-            'sta-manual-angle': 0,
+            'road_fixing': False,
+            'tho_manual_ctrl': 0.0,
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
             }
         
+        self.stat = {'ri_time': 0.0, 'ri_cnt': 0, 'tsd_time': 0.0, 'tsd_cnt': 0}
+                
     def _init_traffic_sign(self):
         self.traffic_sign = {}
         
@@ -337,6 +338,21 @@ class HacDriverII(Hacjpg):
         
         return round(output, 4)
     
+    def get_area_percent_by_color(self, area_percent, rgb):
+        if area_percent == None:
+            errmsg("Invalid input")
+        
+        if rgb == (255, 0, 0):
+            return area_percent['red']
+        elif rgb == (0, 255, 0):
+            return area_percent['green']
+        elif rgb == (0, 0, 255):
+            return area_percent['blue']
+        elif rgb == (0, 0, 0):
+            return area_percent['black']
+        
+        errmsg("Invalid rgb input")
+    
     def calc_expect_sta3(self, dashboard):
         """
            ROAD
@@ -420,22 +436,20 @@ class HacDriverII(Hacjpg):
             # Urgent turn
             self.set_speed(self.spec['speed_uturn'])
         
-        return self.calibrate_sta(out_sta)
+        # TRICKY: Fix road change speed by experience...too bad.
+        if self.dyn['road_fixing'] == True:
+            vanilla = out_sta
+            out_sta = self.calibrate_sta_sqrt(self.calibrate_sta(out_sta)) / 2.0
+            vbsmsg("...road fixing mode: " + format(vanilla) + " -> " + format(out_sta))
+            self.set_speed(self.spec['speed_uturn'])
         
+        return self.calibrate_sta(out_sta)
 
             
     def calc_sta(self, dashboard):
         """
         Calculate steering angle (sta). Depend on camera data.
         """
-        if self.dyn['sta-manual-ctrl'] > 0:
-            self.dyn['sta-manual-ctrl'] -= 1
-            if self.dyn['sta-manual-ctrl'] == 0:
-                self.goforward()
-            else:
-                angle = self.dyn['sta-manual-angle'] / (self.spec['sta-manual-ctrl'] / self.dyn['sta-manual-ctrl'])
-                return self.calibrate_sta(angle)
-        
         if self.dyn['ri_cpoint'] == None:
             """
             Cannot find the road. Do something. plz
@@ -447,7 +461,6 @@ class HacDriverII(Hacjpg):
             """
             Go forward
             """
-            
             self.set_speed_if_negative(self.spec['speed_min'])
             expect_sta = round(self.calc_expect_sta3(dashboard), 4)
             if expect_sta > self.spec['sta_max']:
@@ -544,6 +557,11 @@ class HacDriverII(Hacjpg):
         
         Any tho like 0.0001 seems useless.
         """
+        manual_ctrl = self.dyn['tho_manual_ctrl'] 
+        if manual_ctrl != 0:
+            self.dyn['tho_manual_ctrl'] = 0.0
+            return manual_ctrl
+        
         tho, brk = self.calc_tho_fixed_speed(dashboard, expect_speed=self.dyn['speed'])
         
         if brk > 0:
@@ -551,6 +569,99 @@ class HacDriverII(Hacjpg):
         else:
             return round(tho, 3)
         
+    def ______camera(self):
+        pass
+        
+    def __camera_task_calc_cpoint_data(self):
+        """
+        Recalculate cpoint angle/distance by ri_cpoint
+        
+        Output: ri_cpoint_angle, ri_cpoint_distance
+        """
+        zero_point = self.hacjpg.get_resolution(self.dyn['ri_img'])
+        zero_point = (zero_point[0] / 2, zero_point[1])
+        
+        if self.dyn['ri_cpoint'] == None:
+            errmsg("Invalid cpoint input")
+        
+        cpoint_angle = 90 + self.hacjpg.calc_angle(zero_point, self.dyn['ri_cpoint'])
+        self.dyn['ri_cpoint_angle'] = cpoint_angle
+        if cpoint_angle >= 90 or cpoint_angle <= -90:
+            errmsg("XXX")
+            
+        self.dyn['ri_cpoint_distance'] = self.hacjpg.calc_distance(zero_point, self.dyn['ri_cpoint'])
+        
+    def __camera_task_reindeer_goleft(self):
+        img = self.dyn['ri_img']
+        
+        # Want to go left, but I am on right... so choose the red lane
+        prefer_rgb_fixed = [(255, 0, 0), (0, 255, 0)]
+        prefer_left = False
+        for prefer_rgb in prefer_rgb_fixed:
+            reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
+            prefer_left = True if prefer_left == False else False
+            ri_cpoint, ri_angle, ri_ap_all = reindeer
+            
+            if ri_cpoint != None:
+                print("Select road: ", prefer_rgb, ", left: ", prefer_left)
+                self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent_all'] = reindeer
+                self.dyn['ri_area_percent'] = self.get_area_percent_by_color(self.dyn['ri_area_percent_all'], prefer_rgb)
+                self.__camera_task_calc_cpoint_data()
+                break
+            else:
+                msg("Cannot turn to left side")
+        
+    def __camera_task_reindeer_goright(self):
+        img = self.dyn['ri_img']
+        
+        # Want to go right, but I am on left... so choose the green lane
+        prefer_rgb_fixed = [(0, 255, 0), (255, 0, 0)]
+        prefer_left = True
+        for prefer_rgb in prefer_rgb_fixed:
+            reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
+            prefer_left = True if prefer_left == False else False
+            ri_cpoint, ri_angle, ri_ap_all = reindeer
+            
+            if ri_cpoint != None:
+                print("Select road: ", prefer_rgb, ", left: ", prefer_left)
+                self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent_all'] = reindeer
+                self.dyn['ri_area_percent'] = self.get_area_percent_by_color(self.dyn['ri_area_percent_all'], prefer_rgb)
+                self.__camera_task_calc_cpoint_data()
+                break
+            else:
+                msg("Cannot turn to right side")
+    
+    def __camera_task_reindeer_aftercare(self):
+        """
+        If I get an proper reindeer result.
+        - Try to locate I am on right, or left. Can get info by the coloer percentage. 
+        - If I am not on the way, try to fix 
+        """
+        allap = self.dyn['ri_area_percent_all']
+        
+        if self.dyn['road_fixing'] == False:
+            return
+        
+        if self.dyn['road_prefer_left']:
+            # I want to keep on left. If I am on left, red must > green
+            if allap['red'] > (allap['green'] * 6) and allap['blue'] > allap['red']:
+                self.dyn['road_fixing'] = False
+                return # On the road, keep forward
+            else:
+                vbsmsg("Fix to left, rgb: ", format(allap['red']) + ", " + format(allap['green']) + ", " + format(allap['blue']))
+                self.dyn['road_fixing'] = True
+                self.__camera_task_reindeer_goleft()
+        else:
+            # I want to keep on right. green > red
+            if allap['green'] > (allap['red'] * 6) and allap['blue'] > allap['green']:
+                self.dyn['road_fixing'] = False
+                return # On the road, keep forward
+            else:
+                vbsmsg("Fix to right, rgb: ", format(allap['red']) + ", " + format(allap['green']) + ", " + format(allap['blue']))
+                self.dyn['road_fixing'] = True
+                self.__camera_task_reindeer_goright()
+                
+    
     def camera_task_reindeer(self):
         """
         Process camera image. Identify my location, the direction, goal, etc.
@@ -570,7 +681,7 @@ class HacDriverII(Hacjpg):
         
         # Normalize color to reduce the problem
         img = self.hacjpg.flatten2rgb(img)
-#         self.hacjpg.show(img, 'reindeer', waitkey=1)
+        self.dyn['ri_img'] = img
         
         """
         Have two points. The angle of the line is.
@@ -585,79 +696,44 @@ class HacDriverII(Hacjpg):
             zero point
         """
         self.dyn['ri_cpoint'] = None
+        prefer_left = self.dyn['road_prefer_left']
         for prefer_rgb in self.dyn['road_prefer_rgb']:
-            reindeer = self.hacjpg.reindeer3(img, rgb=prefer_rgb, prefer_left=self.dyn['road_prefer_left'])
-            self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent'] = reindeer
-        
-            self.dyn['ri_img'] = img
+            reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
+            prefer_left = True if prefer_left == False else False
+            self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent_all'] = reindeer
             
             if self.dyn['ri_cpoint'] != None:
+                self.dyn['ri_area_percent'] = self.get_area_percent_by_color(self.dyn['ri_area_percent_all'], prefer_rgb)
+                self.__camera_task_calc_cpoint_data()
                 break
             else:
-                vbsmsg("rindeer retry: ", format(prefer_rgb))
-            
-        if self.is_debug == True:
-            img_dbg = copy.deepcopy(img)
-            
-            self.hacjpg.reindeer3_draw_stat(img_dbg, reindeer)
-            
-            self.hacjpg.draw_text(img_dbg, format(latest_hist['speed']), (0, 12), rgb=(255, 255, 255))
-            self.hacjpg.draw_text(img_dbg, format(latest_hist['sta']), (0, 24), rgb=(255, 255, 255))
-            self.hacjpg.draw_text(img_dbg, format(latest_hist['tho']), (0, 36), rgb=(255, 255, 255))
-            
-            self.hacjpg.show_nowait(img_dbg, name="reindeer")
-        
+                vbsmsg("reindeer lost: ", format(prefer_rgb))
+                pass
+                    
         if self.dyn['ri_cpoint'] != None:
             # Calculate the angle from zero point to cpoint, can imagine this is the wheel angle!
-            zero_point = self.hacjpg.get_resolution(img)
-            zero_point = (zero_point[0] / 2, zero_point[1])
-            
-            cpoint_angle = 90 + self.hacjpg.calc_angle(zero_point, self.dyn['ri_cpoint'])
-            self.dyn['ri_cpoint_angle'] = cpoint_angle
-            if cpoint_angle >= 90 or cpoint_angle <= -90:
-                errmsg("XXX")
-                
-            self.dyn['ri_cpoint_distance'] = self.hacjpg.calc_distance(zero_point, self.dyn['ri_cpoint'])
+            self.__camera_task_reindeer_aftercare()
+            if self.is_debug == True:
+                img_dbg = copy.deepcopy(img)
+                img_dbg = self.hacjpg.reindeer4_draw_stat(img_dbg, reindeer)
+                self.hacjpg.show_nowait(img_dbg, name="reindeer")
         else:
             msg("CAUTION: lost")
-            
+
           
     def gotoleft(self):
-        self.set_speed(self.spec['speed_min'])
-         
-        self.dyn['sta-manual-ctrl'] = self.spec['sta-manual-ctrl']
-        self.dyn['sta-manual-angle'] = (-1) * self.spec['sta-manual-angle']
-        # R -> G -> B
-        self.dyn['road_prefer_rgb'] = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+        self.dyn['road_fixing'] = True
         self.dyn['road_prefer_left'] = True
-        pass
+        
+        # B -> R -> G
+        self.dyn['road_prefer_rgb'] = [(0, 0, 255), (255, 0, 0), (0, 255, 0)]
 
     def gotoright(self):
-        self.set_speed(self.spec['speed_min'])
-        
-        self.dyn['sta-manual-ctrl'] = self.spec['sta-manual-ctrl']
-        self.dyn['sta-manual-angle'] = self.spec['sta-manual-angle']
-        # G -> R -> B
-        self.dyn['road_prefer_rgb'] = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]
+        self.dyn['road_fixing'] = True
         self.dyn['road_prefer_left'] = False
-        pass
-    
-    def goforward(self):
-        self.dyn['sta-manual-ctrl'] = 0
         
-        #
-        # Swap back the preference to origional state.
-        #
-        if self.dyn['road_prefer_left'] == True:
-            # B -> R -> G
-            self.dyn['road_prefer_rgb'] = [(0, 0, 255), (255, 0, 0), (0, 255, 0)]
-            vbsmsg("Recover back to prefer-left")
-        else:
-            # B -> G -> R
-            self.dyn['road_prefer_rgb'] = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
-            vbsmsg("Recover back to prefer-right")
-            
-        pass        
+        # B -> G -> R
+        self.dyn['road_prefer_rgb'] = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
     
     def camera_task_follow_action(self, action):
         
@@ -686,13 +762,23 @@ class HacDriverII(Hacjpg):
         #
         # Analyze road data. Find direction.
         #
+#         st = time.time()
         self.camera_task_reindeer()
+#         ed = time.time()
+#         self.stat['ri_time'] += round(ed - st, 4)
+#         self.stat['ri_cnt'] += 1
         
         #
         # Detect traffic sign
         #
+#         st = time.time()
         self.camera_task_traffic_sign()
-    
+#         ed = time.time()
+#         self.stat['tsd_time'] += round(ed - st, 4)
+#         self.stat['tsd_cnt'] += 1
+#         
+#         vbsmsg("ri_avg: " + format(self.stat['ri_time'] / self.stat['ri_cnt']) + ", tsd_avg: " + format(self.stat['tsd_time'] / self.stat['tsd_cnt']))
+        
     def try2drive(self, img, dashboard):
         """
         Input: {"status": "0", "throttle": "0.0200", "brakes": "0.0000",

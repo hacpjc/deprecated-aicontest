@@ -110,8 +110,8 @@ class Car(Hacjpg):
         
         steering_angle, throttle = self.driver.try2drive(self.img, dashboard)
         
-        if throttle >= 995:
-            msg("Driver bot sends request 995 to restart race.")
+        if throttle >= float(995):
+            msg("Driver bot sends request 995 to restart race. ", format(throttle))
             self.tx_restart()
             return
         
@@ -138,7 +138,7 @@ class Car(Hacjpg):
             msg("Auto reset...")
             self.tx_restart()
         
-        data = { 'steering_angle': 0, 'throttle': 1.0 }
+        data = { 'steering_angle': 0, 'throttle': 0.0 }
         
         output = { 
             'steering_angle': str(data['steering_angle']), 
@@ -166,7 +166,7 @@ if __name__ == "__main__":
     Select a driver to drive!
     """
     from HacDriverII import HacDriverII
-    driver = HacDriverII(is_debug=True)
+    driver = HacDriverII(is_debug=False)
     car = Car(my_emit_func, driver, is_debug=False, is_auto_reset=True, is_save_img=False)
 
     @sio.on('telemetry')

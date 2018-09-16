@@ -471,13 +471,152 @@ class Hacjpg():
         
         central_point, angle, area_percent = reindeer
         if central_point == None:
-            return
+            return None
         else:
             central_point_x, central_point_y = central_point
         
         cv2.circle(img, (central_point_x, central_point_y), 3, (255, 255, 255))
         self.draw_line(img, (width / 2, height), (width / 2, 0), (255, 255, 255), 1)
         
+        return img
+        
+    def reindeer4_draw_stat(self, img, reindeer):
+        return self.reindeer3_draw_stat(img, reindeer)
+        
+    def reindeer4_inc_color_stat(self, color_stat, rgb):
+        if rgb == (255, 0, 0):
+            # Red
+            color_stat['red'] += 1
+        elif rgb == (0, 255, 0):
+            # Green
+            color_stat['green'] += 1
+        elif rgb == (0, 0, 255):
+            # Blue
+            color_stat['blue'] += 1
+        elif rgb == (0, 0, 0):
+            # black
+            color_stat['black'] += 1        
+                
+    def reindeer4_calc_color_stat_percent(self, color_stat, total_area):
+        #
+        # area percentage
+        #
+        green_area = color_stat['green']
+        green_area_percent = int(round(green_area / float(total_area), 4) * 100)
+        
+        blue_area = color_stat['blue']
+        blue_area_percent = int(round(blue_area / float(total_area), 4) * 100)
+        
+        red_area = color_stat['red']
+        red_area_percent = int(round(red_area / float(total_area), 4) * 100)
+        
+        black_area = color_stat['black']
+        black_area_percent = int(round(black_area / float(total_area), 4) * 100)
+        
+        return {'green': green_area_percent, 
+                'blue': blue_area_percent, 
+                'red': red_area_percent, 
+                'black': black_area_percent}
+        
+    def reindeer4(self, img, rgb=(0, 0, 0), prefer_left=True):
+        """
+        Contest specific calculation. Find the color blocks, calculate the angle.
+        
+                        Find the line in the middle of a road
+                       V
+        +++++++++++++++++++++++++++
+        +    .        /           .
+        +  .         /          .
+        + .         /         .
+        +          /       .
+        +         /      .
+        +       /      .
+        ++++++++++++++++++++++++ 
+        
+        Then, I can use the angle to find-out how to get wheel angle.
+        
+        x = [8450.0, 8061.0, 7524.0, 7180.0, 8247.0, 8929.0, 8896.0, 9736.0, 9658.0, 9592.0]
+        y = range(len(x))
+        best_fit_line = np.poly1d(np.polyfit(y, x, 1))(y)
+        """
+        width, height = self.get_resolution(img)
+    
+        color_stat = {'red': 0, 'green': 0, 'blue': 0, 'black': 0}
+        point_cnt = 0
+        map_y = []
+        map_y_uniq = []
+        map_x = []
+        for y in range(height):
+            is_found = False
+            stop_road_seek = False
+            
+            if prefer_left == True:
+                """
+                Prefer the color block at left-side
+                """
+                for x in range(width):
+                    r, g, b = self.get_pixel_rgb(img, x, y)
+                    self.reindeer4_inc_color_stat(color_stat, (r, g, b))
+                    
+                    if stop_road_seek == False:
+                        if (r, g, b) == rgb:
+                            point_cnt += 1
+                            map_y.append(y)
+                            map_x.append(x)
+                            
+                            if is_found == False:
+                                is_found = True
+                                map_y_uniq.append(y)
+                        elif is_found == True:
+                            stop_road_seek = True
+                        
+            else:
+                """
+                Prefer the color block at right-side
+                """
+                for x in range(width - 1, -1, -1):
+                    r, g, b = self.get_pixel_rgb(img, x, y)
+                    self.reindeer4_inc_color_stat(color_stat, (r, g, b))
+                    
+                    if stop_road_seek == False:
+                        if (r, g, b) == rgb:
+                            point_cnt += 1
+                            map_y.append(y)
+                            map_x.append(x)
+                            
+                            if is_found == False:
+                                is_found = True
+                                map_y_uniq.append(y)
+                        elif is_found == True:
+                            stop_road_seek = True
+                            
+        area_percent = self.reindeer4_calc_color_stat_percent(color_stat, width * height)
+                        
+        if len(map_y_uniq) < 2:
+            return None, None, area_percent
+                
+        fit_x = numpy.poly1d(numpy.polyfit(map_y, map_x, 1))(map_y_uniq)
+        fit_x = [int(x) for x in fit_x]
+        
+        for idx in range(len(map_y_uniq)):
+            #
+            # Fix x value if it's out of bound.
+            #
+            if fit_x[idx] >= width:
+                fit_x[idx] = width - 1
+                
+            if fit_x[idx] < 0:
+                fit_x[idx] = 0
+                
+            y, x = map_y_uniq[idx], fit_x[idx]
+#             self.set_pixel_rgb(img, x, y, rgb=(255, 255, 255))
+            
+        central_point_y = int((map_y_uniq[0] + map_y_uniq[-1]) / 2.0)
+        central_point_x = int((fit_x[0] + fit_x[-1]) / 2.0)
+                
+        angle = numpy.rad2deg(numpy.arctan2((map_y_uniq[-1] - map_y_uniq[0]), fit_x[-1] - fit_x[0]))
+        
+        return (central_point_x, central_point_y), angle, area_percent
 
     def reindeer3(self, img, rgb=(0, 0, 0), prefer_left=True):
         """
@@ -1211,7 +1350,7 @@ class HacTrafficSignDetection(Hacjpg):
         
         return self.detect_traffic_sign(img)
         
-def unitest_reindeer3(path):
+def unitest_reindeer4(path):
     hacjpg = Hacjpg()
     
     print("")
@@ -1237,8 +1376,9 @@ def unitest_reindeer3(path):
     
     prefer_rgb = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
     for rgb in prefer_rgb:
-        v = hacjpg.reindeer3(img, rgb=rgb, prefer_left=True)
-        print("reindeer3 result: ", v)
+        cloned_img = copy.deepcopy(img)
+        v = hacjpg.reindeer4(cloned_img, rgb=rgb, prefer_left=True)
+        print("reindeer4 result: ", v)
     
         cpoint, angle, ap = v
         if cpoint != None:
@@ -1250,8 +1390,10 @@ def unitest_reindeer3(path):
             print("cpoint angle: ", hacjpg.calc_angle((reso_x / 2, reso_y), (cx, cy)) + 90)
             print("distance: ", hacjpg.calc_distance((reso_x / 2, reso_y), (cx, cy)))
             print("area percentage: ", ap)
+            
+            hacjpg.reindeer4_draw_stat(cloned_img, v)
 
-        hacjpg.show(img, "result", waitkey=0)
+        hacjpg.show(cloned_img, "result", waitkey=0)
     
     hacjpg.close(img)
     
@@ -1278,6 +1420,6 @@ if __name__ == "__main__":
         path = root.split(os.sep)
         for file in files:
 #             unitest_traffic_sign("./log/" + file)
-            unitest_reindeer3("./log/" + file)
+            unitest_reindeer4("./log/" + file)
         
     
