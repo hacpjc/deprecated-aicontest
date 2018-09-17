@@ -765,6 +765,11 @@ class HacDriverII(Hacjpg):
         self.dyn['road_prefer_rgb'] = [(0, 0, 255), (0, 255, 0), (255, 0, 0)]
     
     def camera_task_follow_action(self, action):
+        latest_position = self.history_get_latest_position()
+        
+        if latest_position == action:
+            vbsmsg("Skip following action: " + action)
+            return
         
         if action == 'left':
             self.gotoleft()
