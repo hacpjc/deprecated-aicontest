@@ -85,7 +85,7 @@ class HacDriverII(Hacjpg):
             'ri_area_percent_all': None,
             'ri_img': None,
             # If I have choice, take right-hand road?
-            'road_prefer_left': False,
+            'road_prefer_left': True,
             'road_prefer_rgb': [(0, 0, 255), (255, 0, 0), (0, 255, 0)],
             'road_fixing': False,
             'tho_manual_ctrl': 0.0,
