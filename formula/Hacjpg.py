@@ -1365,7 +1365,7 @@ def unitest_reindeer4(path):
     #
     # flatten
     #
-    img = hacjpg.crosscut(img, 0.55, 1.0)
+    img = hacjpg.crosscut(img, 0.52, 1.0)
     reso_x, reso_y = hacjpg.get_resolution(img)
     img = hacjpg.resize(img, reso_x / 2, reso_y / 2)
     reso_x, reso_y = hacjpg.get_resolution(img)
@@ -1374,7 +1374,7 @@ def unitest_reindeer4(path):
     img = hacjpg.flatten2rgb(img)
     print ("color map: ", format(hacjpg.get_unique_colors(img)), "resolution: ", reso_x, reso_y)
     
-    prefer_rgb = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+    prefer_rgb = [(0, 0, 255)]
     for rgb in prefer_rgb:
         cloned_img = copy.deepcopy(img)
         v = hacjpg.reindeer4(cloned_img, rgb=rgb, prefer_left=True)

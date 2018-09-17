@@ -85,7 +85,7 @@ class HacDriverII(Hacjpg):
             'ri_area_percent_all': None,
             'ri_img': None,
             # If I have choice, take right-hand road?
-            'road_prefer_left': True,
+            'road_prefer_left': False,
             'road_prefer_rgb': [(0, 0, 255), (255, 0, 0), (0, 255, 0)],
             'road_fixing': False,
             'tho_manual_ctrl': 0.0,
@@ -453,7 +453,7 @@ class HacDriverII(Hacjpg):
         # TRICKY: Fix road change speed by experience...too bad.
         if self.dyn['road_fixing'] == True:
             vanilla = out_sta
-            out_sta = self.calibrate_sta_sqrt(self.calibrate_sta(out_sta)) / 2.0
+            out_sta = self.calibrate_sta_sqrt(self.calibrate_sta(out_sta)) / 1.5
             vbsmsg("...road fixing mode: " + format(vanilla) + " -> " + format(out_sta))
             self.set_speed(self.spec['speed_uturn'])
         
@@ -770,6 +770,18 @@ class HacDriverII(Hacjpg):
             
             self.camera_task_follow_action(action)
         
+    def camera_task_obstacle(self):
+        allap = self.dyn['ri_area_percent_all']
+        
+        if allap['black'] > 30:
+            msg("Car in danger!!!")
+            self.dyn['tho_manual_ctrl'] = -0.3
+            
+            if self.dyn['road_prefer_left'] == True:
+                self.gotoright()
+            else:
+                self.gotoleft()            
+        
     def camera_task(self, img, dashboard):
         self.img = img
         self.dashboard = dashboard
@@ -783,6 +795,11 @@ class HacDriverII(Hacjpg):
         # Detect traffic sign
         #
         self.camera_task_traffic_sign()
+        
+        #
+        # Detect obstacle
+        #
+        self.camera_task_obstacle()
         
     def try2drive(self, img, dashboard):
         """
