@@ -90,6 +90,7 @@ class HacDriverII(Hacjpg):
             'road_fixing': False,
             'tho_manual_ctrl': 0.0,
             'sta_manual_ctrl': 0.0,
+            # Collision recover
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
@@ -185,6 +186,17 @@ class HacDriverII(Hacjpg):
             return None
         else:
             return self.history[idx]
+        
+    def history_save_position(self, position='none'):
+        latest_hist = self.history_get(0)
+        latest_hist['position'] = position
+        
+    def history_get_latest_position(self):
+        for h in self.history:
+            if h['position'] != 'none':
+                return h['position']
+            
+        return 'none'
     
     def history_get_sta_avg(self, num):
         """
@@ -464,9 +476,11 @@ class HacDriverII(Hacjpg):
         """
         Calculate steering angle (sta). Depend on camera data.
         """
-        if self.dyn['sta_manual_ctrl'] != 0.0:
+        sta_manual_ctrl = self.dyn['sta_manual_ctrl'] 
+        if sta_manual_ctrl != 0.0:
+            vbsmsg("sta manual ctrl: " + format(sta_manual_ctrl))
             self.dyn['sta_manual_ctrl'] = 0.0
-            return self.dyn['sta_manual_ctrl']
+            return sta_manual_ctrl
         
         if self.dyn['ri_cpoint'] == None:
             """
@@ -621,7 +635,7 @@ class HacDriverII(Hacjpg):
             ri_cpoint, ri_angle, ri_ap_all = reindeer
             
             if ri_cpoint != None:
-                print("Select road: ", prefer_rgb, ", left: ", prefer_left)
+                print("Fix to left, select road: ", prefer_rgb, ", left: ", prefer_left)
                 self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent_all'] = reindeer
                 self.dyn['ri_area_percent'] = self.get_area_percent_by_color(self.dyn['ri_area_percent_all'], prefer_rgb)
                 self.__camera_task_calc_cpoint_data()
@@ -641,7 +655,7 @@ class HacDriverII(Hacjpg):
             ri_cpoint, ri_angle, ri_ap_all = reindeer
             
             if ri_cpoint != None:
-                print("Select road: ", prefer_rgb, ", left: ", prefer_left)
+                print("Fix to right, select road: ", prefer_rgb, ", left: ", prefer_left)
                 self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent_all'] = reindeer
                 self.dyn['ri_area_percent'] = self.get_area_percent_by_color(self.dyn['ri_area_percent_all'], prefer_rgb)
                 self.__camera_task_calc_cpoint_data()
@@ -735,7 +749,7 @@ class HacDriverII(Hacjpg):
         else:
             msg("CAUTION: lost")
 
-          
+        
     def gotoleft(self):
         self.dyn['road_fixing'] = True
         self.dyn['road_prefer_left'] = True
@@ -771,16 +785,23 @@ class HacDriverII(Hacjpg):
             self.camera_task_follow_action(action)
         
     def camera_task_obstacle(self):
+        """
+        Detect wall or obstacle on road. Try to recover or fix.
+        """
         allap = self.dyn['ri_area_percent_all']
         
-        if allap['black'] > 30:
+        if allap['black'] > 20:
             msg("Car in danger!!!")
-            self.dyn['tho_manual_ctrl'] = -0.3
-            
-            if self.dyn['road_prefer_left'] == True:
-                self.gotoright()
+
+    def camera_task_position(self):
+        allap = self.dyn['ri_area_percent_all']
+        if allap != None:
+            if allap['red'] > (allap['green'] * 2):
+                self.history_save_position('left')
+            elif allap['green'] > (allap['red'] * 2):
+                self.history_save_position('right')
             else:
-                self.gotoleft()            
+                self.history_save_position('none')
         
     def camera_task(self, img, dashboard):
         self.img = img
@@ -790,6 +811,11 @@ class HacDriverII(Hacjpg):
         # Analyze road data. Find direction.
         #
         self.camera_task_reindeer()
+        
+        #
+        # Identify my localtion
+        #
+        self.camera_task_position()
         
         #
         # Detect traffic sign
