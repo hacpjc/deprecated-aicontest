@@ -813,14 +813,12 @@ def pseudo_contest():
     from HacBot.HacBotIII import HacBotIII
     from HacBot.HacBotIV import HacBotIV
     from RandomBot.RandomBot import RandomBot
-#     from SampleBot.SampleBot import SampleBot
-#     from SelmonBot.selmon_bot import MCTSBot
     
     #
     # Decide game loops from argv[1]
     #
     if len(sys.argv) < 2:
-        game_max = 4 
+        game_max = 16 
     else:
         game_max = int(sys.argv[1])
     
