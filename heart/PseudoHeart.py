@@ -40,7 +40,7 @@ class PseudoHeart(Htapi):
                 'score_game': 0,
                 # MISC data 
                 'score_accl': 0, 'shoot_moon_accl': 0, 'score_negative_accl': 0,
-                'winner': 0,
+                'winner': [0, 0, 0, 0],
                             }
             self.player_tups.append(player_tup)
             self.htapi.msg("Add new player: " + player_tup['name'])
@@ -549,12 +549,10 @@ class PseudoHeart(Htapi):
         if self.htapi.find_card(ptup['hand'], card2shoot) == None:
             self.errmsg("Cannot shoot un-existed card at player: " + ptup['name'])
             
-#         print ("Player " + ptup['name'] + " shoots: ", card2shoot, ", hand: ", ptup['hand'], self.db['unusedCards'])
-        
         # Shoot the card.
         removed = self.htapi.remove_card(ptup['hand'], card2shoot)
         if removed == None:
-            self.errmsg("(BUG) Cannot remove card: " + card2shoot.toString()) 
+            self.errmsg("(BUG) Cannot remove player card: " + card2shoot.toString() + ", " + ptup['name']) 
         
         ptup['shoot'].append(card2shoot)
            
@@ -685,16 +683,9 @@ class PseudoHeart(Htapi):
         """
         The end of a single deal.
         """
-        winner = None
-        winner_score = 0
+        score_list = []
         for ptup in self.player_tups:
-            if winner == None:
-                winner = ptup
-                winner_score = ptup['score']
-            elif ptup['score'] > winner_score:
-                winner = ptup
-                winner_score = ptup['score']
-            
+             
             if ptup['score'] < 0:
                 ptup['score_negative_accl'] += ptup['score']
                 
@@ -702,8 +693,19 @@ class PseudoHeart(Htapi):
             ptup['score_game'] += ptup['score']
             if ptup['shoot_moon'] == True:
                 ptup['shoot_moon_accl'] += 1
-                
-        winner['winner'] += 1   
+            
+            score_list.append({'name': ptup['name'], 'score': ptup['score'], 'ptup': ptup})
+        
+        score_list_sorted = sorted(score_list, key=lambda v: v['score'])
+
+        winner = score_list_sorted[3]['ptup']
+        winner['winner'][0] += 1 # winner
+        winner = score_list_sorted[2]['ptup']
+        winner['winner'][1] += 1 # 2nd winner
+        winner = score_list_sorted[1]['ptup']
+        winner['winner'][2] += 1 # 3rd...
+        winner = score_list_sorted[0]['ptup']
+        winner['winner'][3] += 1 # loser...
             
         # Inform players
         for ptup in self.player_tups:
