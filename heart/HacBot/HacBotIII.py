@@ -9,7 +9,7 @@ class HacBotIII(PokerBot, Htapi):
     """
     
     SM_THOLD_PASS3 = 0.6
-    SM_THOLD_PICK = 0.2
+    SM_THOLD_PICK = 0.1
     
     def __init__(self, name, is_debug=False):
         super(HacBotIII, self).__init__(name)
@@ -723,7 +723,12 @@ class HacBotIII(PokerBot, Htapi):
             
             if len(self.htapi.find_penalty_cards(score_player['pick'])) >= 5:
                 print ("There's a pig " + score_player['playerName'])
-                return True
+                
+                if self.htapi.find_card(score_player['pick'], Card('QS')) != None:
+                    return True
+                else:
+                    # I don't want to eat QS...
+                    return False
             
             return False
         
@@ -736,10 +741,11 @@ class HacBotIII(PokerBot, Htapi):
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         
         if self.detect_sm_player(data) == True:
+            self.htapi.dbg("anti-shoot-moon mode")
             card = self.pick_card_shoot_moon_mode(data)
-        
+            
         if self._calc_shoot_moon_ability(data) >= self.SM_THOLD_PICK:
-            self.htapi.dbg("shoot moon mode")
+            self.htapi.dbg("shoot-moon mode")
             card = self.pick_card_shoot_moon_mode(data)
         else:
             self.htapi.dbg("aniti-score mode")
