@@ -796,14 +796,14 @@ class HacDriverII(Hacjpg):
         if allap['black'] > 20:
             msg("Car in danger!!!")
             
-            self.dyn['tho_manual_ctrl'] = -0.32
+            self.dyn['tho_manual_ctrl'] = -0.28
             
             if self.dyn['road_prefer_left'] == True:
                 self.camera_task_follow_action('right')
-                self.dyn['sta_manual_ctrl'] = -5
+                self.dyn['sta_manual_ctrl'] = -1
             else:
                 self.camera_task_follow_action('left')
-                self.dyn['sta_manual_ctrl'] = 5
+                self.dyn['sta_manual_ctrl'] = 1
 
     def camera_task_position(self):
         allap = self.dyn['ri_area_percent_all']
