@@ -9,7 +9,7 @@ class HacBotIII(PokerBot, Htapi):
     """
     
     SM_THOLD_PASS3 = 0.6
-    SM_THOLD_PICK = 0.1
+    SM_THOLD_PICK = 0.5
     
     def __init__(self, name, is_debug=False):
         super(HacBotIII, self).__init__(name)
