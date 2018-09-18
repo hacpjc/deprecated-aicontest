@@ -465,7 +465,7 @@ class HacDriverII(Hacjpg):
         # TRICKY: Fix road change speed by experience...too bad.
         if self.dyn['road_fixing'] == True:
             vanilla = out_sta
-            out_sta = self.calibrate_sta_sqrt(self.calibrate_sta(out_sta)) / 1.5
+            out_sta = self.calibrate_sta_sqrt(self.calibrate_sta(out_sta))
             vbsmsg("...road fixing mode: " + format(vanilla) + " -> " + format(out_sta))
             self.set_speed(self.spec['speed_uturn'])
         
@@ -674,13 +674,12 @@ class HacDriverII(Hacjpg):
         if self.dyn['road_fixing'] == False:
             return
         
-        if self.dyn['road_prefer_left']:
+        if self.dyn['road_prefer_left'] == True:
             # I want to keep on left. If I am on left, red must > green
             if allap['red'] > (allap['green'] * 6) and allap['blue'] > allap['red']:
                 self.dyn['road_fixing'] = False
                 return # On the road, keep forward
             else:
-                vbsmsg("Fix to left, rgb: ", format(allap['red']) + ", " + format(allap['green']) + ", " + format(allap['blue']))
                 self.__camera_task_reindeer_goleft()
         else:
             # I want to keep on right. green > red
@@ -688,7 +687,6 @@ class HacDriverII(Hacjpg):
                 self.dyn['road_fixing'] = False
                 return # On the road, keep forward
             else:
-                vbsmsg("Fix to right, rgb: ", format(allap['red']) + ", " + format(allap['green']) + ", " + format(allap['blue']))
                 self.__camera_task_reindeer_goright()
     
     def camera_task_reindeer(self):
@@ -797,6 +795,15 @@ class HacDriverII(Hacjpg):
         
         if allap['black'] > 20:
             msg("Car in danger!!!")
+            
+            self.dyn['tho_manual_ctrl'] = -0.32
+            
+            if self.dyn['road_prefer_left'] == True:
+                self.camera_task_follow_action('right')
+                self.dyn['sta_manual_ctrl'] = -5
+            else:
+                self.camera_task_follow_action('left')
+                self.dyn['sta_manual_ctrl'] = 5
 
     def camera_task_position(self):
         allap = self.dyn['ri_area_percent_all']
