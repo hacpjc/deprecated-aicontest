@@ -8,7 +8,7 @@ class HacBotIII(PokerBot, Htapi):
     Don't want to avoid opponents shooting the moon, because I don't loss any money :-) 
     """
     
-    SM_THOLD_PASS3 = 0.6
+    SM_THOLD_PASS3 = 0.4
     SM_THOLD_PICK = 0.1
     
     def __init__(self, name, is_debug=False):
@@ -137,13 +137,14 @@ class HacBotIII(PokerBot, Htapi):
         Pop out 1 card to pass
         """
         
-        card = self.htapi.remove_card(my_hand_cards, Card('KS'))
-        if card != None:
-            return card
-        
-        card = self.htapi.remove_card(my_hand_cards, Card('AS'))
-        if card != None:
-            return card
+        if self.htapi.calc_card_num_by_suit(my_hand_cards, 'S') < 3:
+            card = self.htapi.remove_card(my_hand_cards, Card('KS'))
+            if card != None:
+                return card
+            
+            card = self.htapi.remove_card(my_hand_cards, Card('AS'))
+            if card != None:
+                return card
         
         #
         # It's important to remove high rank cards if I have too many...
@@ -151,11 +152,10 @@ class HacBotIII(PokerBot, Htapi):
         # TODO: Remove high-rank cards in shortage.
         #
         my_high_rank_cards = self.htapi.find_cards(my_hand_cards, self.big_rank_cards)
-        my_high_rank_noscore_cards = self.htapi.find_no_penalty_cards(my_high_rank_cards)
-        if len(my_high_rank_noscore_cards) >= 4:
+        if len(my_high_rank_cards) >= 4:
             suit_list = []
             
-            for c in my_high_rank_noscore_cards:
+            for c in my_high_rank_cards:
                 this_suit = c.get_suit()
                 
                 if suit_list.count(this_suit) == 0:
