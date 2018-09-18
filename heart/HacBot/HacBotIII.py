@@ -145,8 +145,28 @@ class HacBotIII(PokerBot, Htapi):
         if card != None:
             return card
         
+        #
+        # It's important to remove high rank cards if I have too many...
+        #
+        # TODO: Remove high-rank cards in shortage.
+        #
+        my_high_rank_cards = self.htapi.find_cards(my_hand_cards, self.big_rank_cards)
+        my_high_rank_noscore_cards = self.htapi.find_no_penalty_cards(my_high_rank_cards)
+        if len(my_high_rank_noscore_cards) >= 4:
+            suit_list = []
+            
+            for c in my_high_rank_noscore_cards:
+                this_suit = c.get_suit()
+                
+                if suit_list.count(this_suit) == 0:
+                    suit_list.append(this_suit)
+            
+            if len(suit_list) == 0:
+                self.htapi.errmsg("Invalid suit list: 0")
+        else:
+            suit_list = ['S', 'H', 'D', 'C']
+            
         # Found the suit in shortage
-        suit_list = ['S', 'H', 'D', 'C']
         pick_suit = None
         pick_suit_num = 0
         for suit in suit_list:
