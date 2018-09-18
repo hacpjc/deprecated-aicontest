@@ -9,7 +9,7 @@ class HacBotIII(PokerBot, Htapi):
     """
     
     SM_THOLD_PASS3 = 0.6
-    SM_THOLD_PICK = 0.5
+    SM_THOLD_PICK = 0.2
     
     def __init__(self, name, is_debug=False):
         super(HacBotIII, self).__init__(name)
@@ -696,12 +696,47 @@ class HacBotIII(PokerBot, Htapi):
             card = self.__midplay_shoot_moon_mode(data)
             
         return card
+    
+    def detect_sm_player(self, data):
+        """
+        If there are two player have score. Not possible to shoot moon.
+        
+        If there's a player having all the score... he is suspicious.
+        """
+        score_player_cnt = 0
+        score_player = None
+        for key in self.players:
+            lp = self.players[key]
+            score = self.htapi.calc_score(lp['pick'], is_expose_ah=self.stat['expose_ah_mode'])
+            if score != 0:
+                score_player_cnt += 1
+                score_player = lp
+                
+        if score_player_cnt >= 2:
+            # Not possible to shoot moon
+            return False
+        
+        if score_player_cnt == 1:
+            if score_player['playerName'] == self.get_name():
+                # I am the shooter...
+                return False
+            
+            if len(self.htapi.find_penalty_cards(score_player['pick'])) >= 5:
+                print ("There's a pig " + score_player['playerName'])
+                return True
+            
+            return False
+        
+        return False
 
     def pick_card(self, data):
         """
         Event: My turn to shoot a card.
         """
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
+        
+        if self.detect_sm_player(data) == True:
+            card = self.pick_card_shoot_moon_mode(data)
         
         if self._calc_shoot_moon_ability(data) >= self.SM_THOLD_PICK:
             self.htapi.dbg("shoot moon mode")
