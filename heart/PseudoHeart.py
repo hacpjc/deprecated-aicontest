@@ -40,6 +40,7 @@ class PseudoHeart(Htapi):
                 'score_game': 0,
                 # MISC data 
                 'score_accl': 0, 'shoot_moon_accl': 0, 'score_negative_accl': 0,
+                'winner': 0,
                             }
             self.player_tups.append(player_tup)
             self.htapi.msg("Add new player: " + player_tup['name'])
@@ -663,7 +664,8 @@ class PseudoHeart(Htapi):
                 ", score: " + str(ptup['score']) + 
                 ", score_accl: " + str(ptup['score_accl']) +
                 ", score_negative_accl:" + str(ptup['score_negative_accl']) + 
-                ", shoot_moon_accl: " + str(ptup['shoot_moon_accl'])
+                ", shoot_moon_accl: " + str(ptup['shoot_moon_accl']) +
+                ", winner: " + str(ptup['winner'])
                 )
        
     def game_round(self, round_num):
@@ -683,14 +685,25 @@ class PseudoHeart(Htapi):
         """
         The end of a single deal.
         """
+        winner = None
+        winner_score = 0
         for ptup in self.player_tups:
+            if winner == None:
+                winner = ptup
+                winner_score = ptup['score']
+            elif ptup['score'] > winner_score:
+                winner = ptup
+                winner_score = ptup['score']
+            
             if ptup['score'] < 0:
                 ptup['score_negative_accl'] += ptup['score']
                 
             ptup['score_accl'] += ptup['score']
             ptup['score_game'] += ptup['score']
             if ptup['shoot_moon'] == True:
-                ptup['shoot_moon_accl'] += 1   
+                ptup['shoot_moon_accl'] += 1
+                
+        winner['winner'] += 1   
             
         # Inform players
         for ptup in self.player_tups:
