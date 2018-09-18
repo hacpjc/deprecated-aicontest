@@ -39,7 +39,7 @@ class PseudoHeart(Htapi):
                 # Game data 
                 'score_game': 0,
                 # MISC data 
-                'score_accl': 0, 'shoot_moon_accl': 0
+                'score_accl': 0, 'shoot_moon_accl': 0, 'score_negative_accl': 0,
                             }
             self.player_tups.append(player_tup)
             self.htapi.msg("Add new player: " + player_tup['name'])
@@ -661,7 +661,8 @@ class PseudoHeart(Htapi):
             self.htapi.dbg(
                 "Player: " + ptup['name'] + 
                 ", score: " + str(ptup['score']) + 
-                ", score_accl: " + str(ptup['score_accl']) + 
+                ", score_accl: " + str(ptup['score_accl']) +
+                ", score_negative_accl:" + str(ptup['score_negative_accl']) + 
                 ", shoot_moon_accl: " + str(ptup['shoot_moon_accl'])
                 )
        
@@ -683,6 +684,9 @@ class PseudoHeart(Htapi):
         The end of a single deal.
         """
         for ptup in self.player_tups:
+            if ptup['score'] < 0:
+                ptup['score_negative_accl'] += ptup['score']
+                
             ptup['score_accl'] += ptup['score']
             ptup['score_game'] += ptup['score']
             if ptup['shoot_moon'] == True:
@@ -780,11 +784,12 @@ class PseudoHeart(Htapi):
             self.game_play1deal()
             
         self.game_over()
+        
+        self.show_score()
 
     def game_loop(self, loop_max=1):
         for loop in range(1, loop_max + 1):
             self.game_single()
-            self.show_score()
 
 def pseudo_contest():
     """
