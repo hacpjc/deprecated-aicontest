@@ -9,7 +9,7 @@ class HacBotIV(PokerBot, Htapi):
     """
     
     SM_THOLD_PASS3 = 0.6
-    SM_THOLD_PICK = 0.25
+    SM_THOLD_PICK = 0.32
     
     def __init__(self, name, is_debug=False):
         super(HacBotIV, self).__init__(name)
@@ -694,13 +694,30 @@ class HacBotIV(PokerBot, Htapi):
         
         if my_pos == 0:
             self.htapi.dbg("sm lead play")
-            card = self.__leadplay_shoot_moon_mode(data)            
-        elif my_pos == 3:
-            self.htapi.dbg("sm last play")
-            card = self.__lastplay_shoot_moon_mode(data)
+            card = self.__leadplay_shoot_moon_mode(data)
         else:
-            self.htapi.dbg("sm mid play")
-            card = self.__midplay_shoot_moon_mode(data)
+            #
+            # If this suit still has a lot of cards left. Hide my shoot moon action.
+            #
+            my_hand_cards = self.stat['hand']
+            if len(my_hand_cards) > 9:
+                round_cards = self.stat['roundCard']
+                lead_card = round_cards[0]
+                lead_card_suit = lead_card.get_suit()
+                
+                all52cards = self.htapi.get52cards()
+                unused_cards = self.htapi.filter_out_cards(all52cards, self.stat['usedCard'])
+                unused_same_suit_cards = self.htapi.get_cards_by_suit(unused_cards, lead_card_suit)
+                if len(unused_same_suit_cards) > 8 and len(self.htapi.get_cards_by_suit(my_hand_cards, lead_card_suit)) > 0:
+                    # Many cards left... just be a good baby and shoot low rank cards.
+                    return self.pick_card_anti_score_mode(data)            
+                                    
+            if my_pos == 3:
+                self.htapi.dbg("sm last play")
+                card = self.__lastplay_shoot_moon_mode(data)
+            else:
+                self.htapi.dbg("sm mid play")
+                card = self.__midplay_shoot_moon_mode(data)
             
         return card
     

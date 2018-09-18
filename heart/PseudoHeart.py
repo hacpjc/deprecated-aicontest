@@ -820,7 +820,7 @@ def pseudo_contest():
     # Decide game loops from argv[1]
     #
     if len(sys.argv) < 2:
-        game_max = 16 
+        game_max = 400 
     else:
         game_max = int(sys.argv[1])
     
