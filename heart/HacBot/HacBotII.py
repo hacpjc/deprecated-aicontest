@@ -409,7 +409,7 @@ class HacBotII(PokerBot, Htapi):
         
         prefer_cards = self.htapi.arrange_cards(self.htapi.get_cards_by_suit(selected, prefer_suit))
         self.htapi.dbg("Selected candidates: " + format(prefer_cards))
-        card2shoot = prefer_cards.pop()
+        card2shoot = prefer_cards.pop(0)
         self.htapi.dbg("Select card" + format(card2shoot))
         
         return card2shoot
