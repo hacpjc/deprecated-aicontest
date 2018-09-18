@@ -145,22 +145,6 @@ class HacBotIII(PokerBot, Htapi):
         if card != None:
             return card
         
-        card = self.htapi.remove_card(my_hand_cards, Card('AC'))
-        if card != None:
-            return card
-        
-        card = self.htapi.remove_card(my_hand_cards, Card('KC'))
-        if card != None:
-            return card        
-
-        card = self.htapi.remove_card(my_hand_cards, Card('QC'))
-        if card != None:
-            return card 
-        
-        card = self.htapi.remove_card(my_hand_cards, Card('JC'))
-        if card != None:
-            return card               
-        
         # Found the suit in shortage
         suit_list = ['S', 'H', 'D', 'C']
         pick_suit = None
@@ -409,7 +393,7 @@ class HacBotIII(PokerBot, Htapi):
         
         prefer_cards = self.htapi.arrange_cards(self.htapi.get_cards_by_suit(selected, prefer_suit))
         self.htapi.dbg("Selected candidates: " + format(prefer_cards))
-        card2shoot = prefer_cards.pop()
+        card2shoot = prefer_cards.pop(0)
         self.htapi.dbg("Select card" + format(card2shoot))
         
         return card2shoot
@@ -719,21 +703,19 @@ class HacBotIII(PokerBot, Htapi):
                 score_player = lp
                 
         if score_player_cnt >= 2:
-            # Not possible to shoot moon
+            # No player can shoot moon.
             return False
         
         if score_player_cnt == 1:
             if score_player['playerName'] == self.get_name():
-                # I am the shooter...
                 return False
             
             if len(self.htapi.find_penalty_cards(score_player['pick'])) >= 5:
-                print ("There's a pig " + score_player['playerName'])
-                
                 if self.htapi.find_card(score_player['pick'], Card('QS')) != None:
+                    self.htapi.dbg("There's a pig " + score_player['playerName'] + ", kill!")
                     return True
                 else:
-                    # I don't want to eat QS...
+                    self.htapi.dbg("There's a pig " + score_player['playerName'] + ", but...")
                     return False
             
             return False
