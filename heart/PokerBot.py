@@ -319,6 +319,9 @@ class Htapi():
         
         all52cards = self.get52cards()
         self.game_no_penalty_cards = self.filter_out_cards(all52cards, self.game_penalty_cards)
+        
+        all52cards = self.get52cards()
+        self.game_no_score_cards = self.filter_out_cards(all52cards, self.game_score_cards)
 
     def logdict(self, dict):
         """
@@ -411,6 +414,12 @@ class Htapi():
         NOTE: TC is also a score card
         """
         return self.find_cards(cards_in, self.game_score_cards)
+    
+    def find_no_score_cards(self, cards_in):
+        """
+        NOTE: TC is also a score card
+        """
+        return self.find_cards(cards_in, self.game_no_score_cards)
     
     def find_penalty_cards(self, cards_in):
         """

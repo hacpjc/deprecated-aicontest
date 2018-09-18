@@ -9,7 +9,7 @@ class HacBotIII(PokerBot, Htapi):
     """
     
     SM_THOLD_PASS3 = 0.6
-    SM_THOLD_PICK = 0.1
+    SM_THOLD_PICK = 0.3
     
     def __init__(self, name, is_debug=False):
         super(HacBotIII, self).__init__(name)
@@ -264,7 +264,8 @@ class HacBotIII(PokerBot, Htapi):
         # The simplest calculation is to check if I have too many big-rank cards
         my_big_cards = self.htapi.find_cards(my_hand_cards, self.big_rank_cards)
         my_big_card_num = len(my_big_cards)
-        if my_big_card_num > 2 and my_big_card_num < 5:
+        
+        if my_big_card_num > 3 and my_big_card_num <= 5:
             """
             Have some but not many high-rank.
             """
@@ -298,17 +299,20 @@ class HacBotIII(PokerBot, Htapi):
         
         Output: The possibility to get score if I shoot the card: 0 ~ 100.0
         """
-
-        # TODO: Improve prediction by the players!
+        
+                # TODO: Improve prediction by the players!
 #         next_players = self.stat['nextPlayers'] 
 #         next_player_num = len(next_players)
 
         # Calculate the number of cards will... make me eat the trick.
         opponent_same_suit_cards = self.htapi.get_cards_by_suit(opponent_cards, card2shoot.get_suit())
         if len(opponent_same_suit_cards) == 0:
+            """
+            This card will win this round...
+            """
             opponent_score_cards = self.htapi.find_score_cards(opponent_cards)
             if len(opponent_score_cards) > 0:
-                return 100.0
+                return 75.0
             else:
                 # There's no penalty card now. Won't eat 
                 return 0.0                
@@ -390,6 +394,10 @@ class HacBotIII(PokerBot, Htapi):
             elif same_suit_num < min_suit_num:
                 prefer_suit = suit
                 min_suit_num = same_suit_num
+            elif same_suit_num == min_suit_num:
+                if suit != 'H':
+                    prefer_suit = suit
+                    min_suit_num = same_suit_num                    
         
         prefer_cards = self.htapi.arrange_cards(self.htapi.get_cards_by_suit(selected, prefer_suit))
         self.htapi.dbg("Selected candidates: " + format(prefer_cards))
@@ -411,7 +419,12 @@ class HacBotIII(PokerBot, Htapi):
             Have the same suit. Choose a smaller card to avoid the trick.
             """
             filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
-            return self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=True)
+            card2shoot = self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=False)
+            if card2shoot != None:
+                return card2shoot
+            else:
+                # Do not have smaller card. Try a bigger one, but not biggest.
+                return self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
         else:
             """
             I don't have the same suit. Git rid of 'QS'. 
@@ -459,6 +472,10 @@ class HacBotIII(PokerBot, Htapi):
             If there's a point, try to avoid.
             """
             if score_card_num == 0:
+                safe_cards = self.htapi.find_no_score_cards(my_avail_cards)
+                if len(safe_cards) > 0:
+                    return self.htapi.pick_big_card(safe_cards)
+                
                 return self.htapi.pick_big_card(my_avail_cards)
             else:
                 return self.htapi.pick_smaller_card(my_avail_cards, round_cards, auto_choose_big=True)
