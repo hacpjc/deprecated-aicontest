@@ -531,6 +531,12 @@ class HacBotIII(PokerBot, Htapi):
                 
                 if c.get_rank_num() > unused_same_suit_cards[-1].get_rank_num():
                     win_count += 1
+                    
+        """
+        Patch: If I have many high-rank cards, win_count ++
+        """
+        if len(self.htapi.find_cards(my_hand_cards, self.big_rank_cards)) > (len(my_hand_cards) / 2):
+            win_count += len(self.htapi.find_cards(my_hand_cards, self.big_rank_cards)) - (len(my_hand_cards) / 2) 
         
         self.htapi.dbg("shoot moon ability: " + str(win_count) + " / " + str(left_turn_num))
         return win_count / float(left_turn_num)
