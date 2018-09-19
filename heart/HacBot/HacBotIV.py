@@ -700,7 +700,7 @@ class HacBotIV(PokerBot, Htapi):
             # If this suit still has a lot of cards left. Hide my shoot moon action.
             #
             my_hand_cards = self.stat['hand']
-            if len(my_hand_cards) > 9:
+            if len(my_hand_cards) > 6:
                 round_cards = self.stat['roundCard']
                 lead_card = round_cards[0]
                 lead_card_suit = lead_card.get_suit()
