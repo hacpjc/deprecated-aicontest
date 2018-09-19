@@ -772,7 +772,6 @@ class HacDriverII(Hacjpg):
         latest_position = self.history_get_latest_position()
         
         if latest_position == action:
-            vbsmsg("Skip following action: " + action)
             return
         
         if action == 'left':
@@ -802,7 +801,7 @@ class HacDriverII(Hacjpg):
         if self.dyn['road_obstacle'] == True:
             
             if allap['black'] > 20:
-                self.dyn['tho_manual_ctrl'] = -0.28
+                self.dyn['tho_manual_ctrl'] = -0.15
             
             my_position = self.history_get_latest_position()
             
@@ -811,10 +810,9 @@ class HacDriverII(Hacjpg):
                 if my_position == 'left':
                     self.dyn['road_obstacle'] = False
                 else:
-                    msg("Car in danger!!! Really. Damn, are you sleeping?")
+                    msg("Bee. Bee. Bee")
                     
                     if self.history_get_brake() > 0:
-                        print("brk=", self.history_get_brake())
                         self.dyn['sta_manual_ctrl'] = 10
                     return
             else:
@@ -822,18 +820,22 @@ class HacDriverII(Hacjpg):
                 if my_position == 'right':
                     self.dyn['road_obstacle'] = False
                 else:
-                    msg("Car in danger!!! Really. Damn, are you sleeping?")
+                    msg("Bee. Bee. Bee")
                     if self.history_get_brake() > 0:
-                        print("brk=", self.history_get_brake())
                         self.dyn['sta_manual_ctrl'] = -10
                     return
         
-        if allap['black'] > 20:
+        if allap['black'] > 30 and self.history_get_speed() < 0.04:
             msg("Car in danger!!!")
+            
+            if allap['black'] > 75:
+                msg("Sight is not clear... Try back.")
+                self.dyn['tho_manual_ctrl'] = -0.2
+                return                
             
             self.dyn['road_obstacle'] = True
             
-            self.dyn['tho_manual_ctrl'] = -0.28
+            self.dyn['tho_manual_ctrl'] = -0.3
             
             if self.dyn['road_prefer_left'] == True:
                 self.camera_task_follow_action('right')
