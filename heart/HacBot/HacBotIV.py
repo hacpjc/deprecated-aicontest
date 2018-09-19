@@ -710,7 +710,11 @@ class HacBotIV(PokerBot, Htapi):
                 unused_same_suit_cards = self.htapi.get_cards_by_suit(unused_cards, lead_card_suit)
                 if len(unused_same_suit_cards) > 8 and len(self.htapi.get_cards_by_suit(my_hand_cards, lead_card_suit)) > 0:
                     # Many cards left... just be a good baby and shoot low rank cards.
-                    return self.pick_card_anti_score_mode(data)            
+                    my_avail_cards = [Card(x) for x in data['self']['candidateCards']]
+                    smaller_card = self.htapi.pick_smaller_card(my_avail_cards, round_cards)
+                    if smaller_card == None:
+                        return self.htapi.pick_bigger_card(my_avail_cards, round_cards)
+                    return smaller_card
                                     
             if my_pos == 3:
                 self.htapi.dbg("sm last play")
