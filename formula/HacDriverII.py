@@ -88,6 +88,7 @@ class HacDriverII(Hacjpg):
             'road_prefer_left': True,
             'road_prefer_rgb': [(0, 0, 255), (255, 0, 0), (0, 255, 0)],
             'road_fixing': False,
+            'road_obstacle': False,
             'tho_manual_ctrl': 0.0,
             'sta_manual_ctrl': 0.0,
             # Collision recover
@@ -186,6 +187,11 @@ class HacDriverII(Hacjpg):
             return None
         else:
             return self.history[idx]
+        
+    def history_get_brake(self, idx=0):
+        h = self.history_get(idx)
+        
+        return h['brk']
         
     def history_save_position(self, position='none'):
         latest_hist = self.history_get(0)
@@ -793,17 +799,48 @@ class HacDriverII(Hacjpg):
         """
         allap = self.dyn['ri_area_percent_all']
         
+        if self.dyn['road_obstacle'] == True:
+            
+            if allap['black'] > 20:
+                self.dyn['tho_manual_ctrl'] = -0.28
+            
+            my_position = self.history_get_latest_position()
+            
+            if self.dyn['road_prefer_left'] == True:
+                # Goto left
+                if my_position == 'left':
+                    self.dyn['road_obstacle'] = False
+                else:
+                    msg("Car in danger!!! Really. Damn, are you sleeping?")
+                    
+                    if self.history_get_brake() > 0:
+                        print("brk=", self.history_get_brake())
+                        self.dyn['sta_manual_ctrl'] = 10
+                    return
+            else:
+                # Goto right
+                if my_position == 'right':
+                    self.dyn['road_obstacle'] = False
+                else:
+                    msg("Car in danger!!! Really. Damn, are you sleeping?")
+                    if self.history_get_brake() > 0:
+                        print("brk=", self.history_get_brake())
+                        self.dyn['sta_manual_ctrl'] = -10
+                    return
+        
         if allap['black'] > 20:
             msg("Car in danger!!!")
+            
+            self.dyn['road_obstacle'] = True
             
             self.dyn['tho_manual_ctrl'] = -0.28
             
             if self.dyn['road_prefer_left'] == True:
                 self.camera_task_follow_action('right')
-                self.dyn['sta_manual_ctrl'] = -1
+                self.dyn['sta_manual_ctrl'] = -3
             else:
                 self.camera_task_follow_action('left')
-                self.dyn['sta_manual_ctrl'] = 1
+                self.dyn['sta_manual_ctrl'] = 3
 
     def camera_task_position(self):
         allap = self.dyn['ri_area_percent_all']
