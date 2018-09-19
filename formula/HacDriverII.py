@@ -58,7 +58,7 @@ class HacDriverII(Hacjpg):
             # history
             'history_max': 10,
             # speed error tolerance
-            'speed_max': 0.9,
+            'speed_max': 0.95,
             'speed_min': 0.60,
             'speed_uturn': 0.60,
             'speed_turn': 0.65,
@@ -538,7 +538,10 @@ class HacDriverII(Hacjpg):
                     return (latest_tho, 0.0)
                 else:
                     # Add some tho to improve speed
-                    tho2add = self.spec['tho_unit']
+                    if speed_diff >= expect_speed / 2.0:
+                        tho2add = self.spec['tho_unit'] * 2
+                    else:
+                        tho2add = self.spec['tho_unit']
                     tho = latest_tho + tho2add
                     return (tho, 0.0)
             elif speed_diff < 0:
@@ -633,7 +636,7 @@ class HacDriverII(Hacjpg):
         img = self.dyn['ri_img']
         
         # Want to go left, but I am on right... so choose the red lane
-        prefer_rgb_fixed = [(255, 0, 0), (0, 255, 0)]
+        prefer_rgb_fixed = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
         prefer_left = False
         for prefer_rgb in prefer_rgb_fixed:
             reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
@@ -653,7 +656,7 @@ class HacDriverII(Hacjpg):
         img = self.dyn['ri_img']
         
         # Want to go right, but I am on left... so choose the green lane
-        prefer_rgb_fixed = [(0, 255, 0), (255, 0, 0)]
+        prefer_rgb_fixed = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]
         prefer_left = True
         for prefer_rgb in prefer_rgb_fixed:
             reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
@@ -828,7 +831,7 @@ class HacDriverII(Hacjpg):
         if allap['black'] > 30 and self.history_get_speed() < 0.04:
             msg("Car in danger!!!")
             
-            if allap['black'] > 75:
+            if allap['black'] > 80:
                 msg("Sight is not clear... Try back.")
                 self.dyn['tho_manual_ctrl'] = -0.2
                 return                
