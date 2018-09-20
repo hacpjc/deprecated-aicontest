@@ -152,19 +152,15 @@ class HacBotV(PokerBot, Htapi):
         """
         
         card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
-        card_num_stat_sorted_dict = dict(card_num_stat_sorted)
+#         card_num_stat_sorted_dict = dict(card_num_stat_sorted)
         
-        if card_num_stat_sorted_dict['S'] <= 1:
-            # Spade in shortage. KS and AS will be dangerous.
-            card = self.htapi.remove_card(my_hand_cards, Card('KS'))
-            if card != None:
-                return card
-            
+        if self.htapi.find_card(my_hand_cards, Card('QS')) == None:
             card = self.htapi.remove_card(my_hand_cards, Card('AS'))
             if card != None:
                 return card
             
-            card = self.htapi.remove_card(my_hand_cards, Card('QS'))
+            # Spade in shortage. KS and AS will be dangerous.
+            card = self.htapi.remove_card(my_hand_cards, Card('KS'))
             if card != None:
                 return card
         
