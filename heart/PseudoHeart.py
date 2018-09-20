@@ -670,7 +670,7 @@ class PseudoHeart(Htapi):
         """
         Play 1 round = 4 turn
         """
-        self.htapi.dbg("Round: " + str(self.db['roundNumber']) + 
+        self.htapi.msg("Round: " + str(self.db['roundNumber']) + 
                        ", Deal: " + str(self.db['dealNumber']) + 
                        ", Game: " + str(self.db['gameNumber']))
         
@@ -814,22 +814,23 @@ def pseudo_contest():
     from HacBot.HacBotII import HacBotII
     from HacBot.HacBotIII import HacBotIII
     from HacBot.HacBotIV import HacBotIV
+    from HacBot.HacBotV import HacBotV
     from RandomBot.RandomBot import RandomBot
     
     #
     # Decide game loops from argv[1]
     #
     if len(sys.argv) < 2:
-        game_max = 400 
+        game_max = 1
     else:
         game_max = int(sys.argv[1])
     
     #
     # If you feel the msg is to annoying, disable it in Htapi
     #
-    mybot = HacBotIV('HacBotIV', is_debug=False)
+    mybot = HacBotV('HacBotV', is_debug=True)
     opponent1 = HacBot('HacBot')
-    opponent2 = HacBotII('HacBotII')
+    opponent2 = HacBotIV('HacBotIV')
     opponent3 = HacBotIII('HacBotIII')
     players = [mybot, opponent1, opponent2, opponent3]
 
