@@ -256,7 +256,8 @@ class HacBotV(PokerBot, Htapi):
             if card.get_rank_num() < c.get_rank_num():
                 lose_cnt += 1
         
-        return lose_cnt / float(len(oppo_unused_same_suit_cards)) 
+        point = lose_cnt / float(len(oppo_unused_same_suit_cards))
+        return point 
 
     def _calc_sm_point(self, card, oppo_unused_cards):
         """
@@ -420,7 +421,7 @@ class HacBotV(PokerBot, Htapi):
         
         my_avail_cards = self._get_avail_cards()
         
-        if len(self.htapi.get_cards_by_suit(my_avail_cards, lead_card.get_suit)) == 0:
+        if len(self.htapi.get_cards_by_suit(my_avail_cards, lead_card.get_suit())) == 0:
             return False
         
         return True        
