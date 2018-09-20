@@ -821,7 +821,7 @@ def pseudo_contest():
     # Decide game loops from argv[1]
     #
     if len(sys.argv) < 2:
-        game_max = 1
+        game_max = 400
     else:
         game_max = int(sys.argv[1])
     
@@ -829,9 +829,9 @@ def pseudo_contest():
     # If you feel the msg is to annoying, disable it in Htapi
     #
     mybot = HacBotV('HacBotV', is_debug=True)
-    opponent1 = HacBot('HacBot')
-    opponent2 = HacBotIV('HacBotIV')
-    opponent3 = HacBotIII('HacBotIII')
+    opponent1 = HacBot('HacBot-1')
+    opponent2 = HacBot('HacBot-2')
+    opponent3 = HacBot('HacBot-3')
     players = [mybot, opponent1, opponent2, opponent3]
 
     #    

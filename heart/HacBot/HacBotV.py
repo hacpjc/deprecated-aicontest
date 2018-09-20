@@ -3,10 +3,11 @@ from PokerBot import PokerBot, system_log, Card, Htapi
 
 class HacBotV(PokerBot, Htapi):
     """
-    Random bot. Life is luck. Life is random. Life is life.
+    Anti-Score Mode (AS)
+    Shoot-Moon Mode (SM)
     """
-    SM_THOLD_PASS3 = 9.0
-    ANTISCORE_THOLD_PASS3 = 8.0
+    SM_THOLD_PASS3 = 900.0
+    AS_THOLD_PASS3 = 8.0
     
     def __init__(self, name, is_debug=False):
         super(HacBotV, self).__init__(name)
@@ -18,6 +19,7 @@ class HacBotV(PokerBot, Htapi):
         self.stat['roundCard'] = [] 
         self.stat['usedCard'] = []
         self.stat['nextPlayers'] = []
+        self.stat['roundPlayers'] = []
         
         self.big_rank_cards = [
             Card('AS'), Card('KS'), Card('JS'), Card('TS'),
@@ -34,10 +36,10 @@ class HacBotV(PokerBot, Htapi):
         self.plz_rebuild_players = True
         
         self.stat['expose_ah_mode'] = False
-        self.stat['shoot_moon_mode'] = True
+        self.stat['sm_mode'] = True
         
-        self.stat['pass3_antiscore_ability'] = 0
-        self.stat['pass3_antiscore_ability_history'] = []
+        self.stat['pass3_as_ability'] = 0
+        self.stat['pass3_as_ability_history'] = []
         self.stat['pass3_sm_ability'] = 0
         self.stat['pass3_sm_ability_history'] = []
         
@@ -59,7 +61,7 @@ class HacBotV(PokerBot, Htapi):
                 'playerName': dp['playerName'],
                 'score_accl': 0,
                 'score': 0,
-                'shoot_moon': 0,
+                'sm': 0,
                 'expose': False,
                                 
                 'shoot': [],
@@ -80,6 +82,7 @@ class HacBotV(PokerBot, Htapi):
         Event: Receive my 13 cards.
         """
         self.stat['hand'] = self.get_cards(data)
+        self.stat['hand'] = self.htapi.clone_cards(self.stat['hand'])
         
     def _calc_hand_cards_num(self, my_hand_cards, reverse=False):
         card_num_stat = {'S': 0, 'H': 0, 'D': 0, 'C': 0}        
@@ -89,7 +92,7 @@ class HacBotV(PokerBot, Htapi):
         card_num_stat_sorted = sorted(card_num_stat.iteritems(), key=lambda (k, v): (v, k), reverse=reverse)
         return card_num_stat_sorted
 
-    def _select_card2pass_shoot_moon_mode(self, my_hand_cards):
+    def _select_card2pass_sm_mode(self, my_hand_cards):
         """
         Pop out 1 card to pass
         
@@ -189,7 +192,15 @@ class HacBotV(PokerBot, Htapi):
             return self.htapi.remove_card(my_hand_cards, big_card)
         
         self.htapi.errmsg("BUG")
-           
+    
+    def _get_used_cards(self):
+        return self.stat['usedCard']
+    
+    def _get_used_cards_by_suits(self, suits=[]):
+        used_cards = self.stat['usedCard']
+        output = self.htapi.get_cards_by_suits(used_cards, suits)
+        return output
+    
     def _get_unused_cards_by_suits(self, my_hand_cards, suits=[]):
         """
         Get unused cards of other opponents so that I can know how many cards are left..
@@ -213,7 +224,19 @@ class HacBotV(PokerBot, Htapi):
     def _get_unused_cards(self, my_hand_cards):
         return self._get_unused_cards_by_suits(my_hand_cards, suits=[])
     
-    def _calc_antiscore_point(self, card, oppo_unused_cards):
+    def _get_round_cards(self):
+        round_cards = self.stat['roundCard']
+        return round_cards
+    
+    def _get_avail_cards(self):
+        my_avail_cards = self.stat['avail']
+        return my_avail_cards
+    
+    def _get_hand_cards(self):
+        my_hand_cards = self.stat['hand']
+        return my_hand_cards
+    
+    def _calc_as_point(self, card, oppo_unused_cards):
         """
         Calculate the power of this card to avoid taking grades.
         
@@ -251,44 +274,44 @@ class HacBotV(PokerBot, Htapi):
         
         return win_cnt / float(len(oppo_unused_same_suit_cards))
     
-    def _pass_cards_calc_shoot_moon_ability(self, data=None):
+    def _pass_cards_calc_sm_ability(self, data=None):
         """
         Detect if I can shoot the moon.
         """
-        my_hand_cards = self.stat['hand']
+        my_hand_cards = self._get_hand_cards()
         oppo_unused_cards = self._get_unused_cards(my_hand_cards)
         
         if len(oppo_unused_cards) != (52 - 13) or len(my_hand_cards) != 13:
             self.htapi.errmsg("BUG")
             
-        return self._pick_card_calc_shoot_moon_ability(data=None)
+        return self._pick_card_calc_sm_ability(data=None)
     
-    def _pass_cards_calc_antiscore_ability(self, data):
+    def _pass_cards_calc_as_ability(self, data):
         """
         Detect if I can shoot the moon.
         """
-        my_hand_cards = self.stat['hand']
+        my_hand_cards = self._get_hand_cards()
         oppo_unused_cards = self._get_unused_cards(my_hand_cards)
          
-        my_antiscore_point = 0.0
+        my_as_point = 0.0
         for c in my_hand_cards:
-            this_antiscore_point = self._calc_antiscore_point(c, oppo_unused_cards)
-            if this_antiscore_point >= 1.0:
-                my_antiscore_point += this_antiscore_point * 2
+            this_as_point = self._calc_as_point(c, oppo_unused_cards)
+            if this_as_point >= 1.0:
+                my_as_point += this_as_point * 2
             else:    
-                my_antiscore_point += this_antiscore_point       
+                my_as_point += this_as_point       
             
-        return my_antiscore_point 
+        return my_as_point 
     
-    def _pass_cards_shoot_moon_mode(self, data):
+    def _pass_cards_sm_mode(self, data):
         """
         Pick 3 cards which can help myself to shoot moon.
         """
-        my_hand_cards = self.stat['hand']
+        my_hand_cards = self._get_hand_cards()
 
         output = []
         for i in range(3):
-            card = self._select_card2pass_shoot_moon_mode(my_hand_cards)
+            card = self._select_card2pass_sm_mode(my_hand_cards)
             if card == None:
                 self.htapi.errmsg("Cannot pick a card to pass")
             output.append(card.toString())
@@ -296,11 +319,11 @@ class HacBotV(PokerBot, Htapi):
         self.htapi.dbg(self.get_name() + " pass 3 cards: " + format(output))
         return output
     
-    def _pass_cards_anti_score_mode(self, data):
+    def _pass_cards_as_mode(self, data):
         """
         Pick 3 cards which can avoid taking score
         """
-        my_hand_cards = self.stat['hand']
+        my_hand_cards = self._get_hand_cards()
         
         output = []
         for i in range(3):
@@ -321,16 +344,16 @@ class HacBotV(PokerBot, Htapi):
         
         self.htapi.dbg("Select 3 cards from: " + format(self.stat['hand']))
         
-        sm_ability = self._pass_cards_calc_shoot_moon_ability()
+        sm_ability = self._pass_cards_calc_sm_ability()
         self.stat['pass3_sm_ability'] = sm_ability
-        self.stat['pass3_antiscore_ability'] = self._pass_cards_calc_antiscore_ability(data)
-        self.htapi.dbg("Ability stat. sm: ", format(sm_ability), "antiscore: ", format(self.stat['pass3_antiscore_ability']))
+        self.stat['pass3_as_ability'] = self._pass_cards_calc_as_ability(data)
+        self.htapi.dbg("Ability stat. sm: ", format(sm_ability), "as: ", format(self.stat['pass3_as_ability']))
         if sm_ability > self.SM_THOLD_PASS3:
             self.htapi.dbg("shoot moon mode pass3: " + str(sm_ability))
-            return self._pass_cards_shoot_moon_mode(data)
+            return self._pass_cards_sm_mode(data)
         else:
             self.htapi.dbg("anti score mode pass3")
-            return self._pass_cards_anti_score_mode(data)
+            return self._pass_cards_as_mode(data)
 
     def receive_opponent_cards(self, data):
         """
@@ -359,7 +382,7 @@ class HacBotV(PokerBot, Htapi):
             output = ['AH']
             return output
         
-        if self.stat['pass3_antiscore_ability'] > self.ANTISCORE_THOLD_PASS3:
+        if self.stat['pass3_as_ability'] > self.AS_THOLD_PASS3:
             # I have confidence not taking score...
             output = ['AH']
             return output
@@ -385,11 +408,28 @@ class HacBotV(PokerBot, Htapi):
     def ______expose_card(self):
         pass
     
-    def _pick_card_calc_shoot_moon_ability(self, data=None):
+    def _do_i_have_lead_suit(self):
+        """
+        Cannot be called at lead play!!
+        """
+        round_cards = self._get_round_cards()
+        if len(round_cards) == 0:
+            self.errmsg("BUG")
+        
+        lead_card = round_cards[0]
+        
+        my_avail_cards = self._get_avail_cards()
+        
+        if len(self.htapi.get_cards_by_suit(my_avail_cards, lead_card.get_suit)) == 0:
+            return False
+        
+        return True        
+    
+    def _pick_card_calc_sm_ability(self, data=None):
         """
         Detect if I can shoot the moon.
         """
-        my_hand_cards = self.stat['hand']
+        my_hand_cards = self._get_hand_cards()
         oppo_unused_cards = self._get_unused_cards(my_hand_cards)
             
         my_sm_point = 0.0
@@ -406,10 +446,10 @@ class HacBotV(PokerBot, Htapi):
         """
         Predict my ability to shoot moon.
         """
-        if self.stat['shoot_moon_mode'] == False:
+        if self.stat['sm_mode'] == False:
             return False
                 
-        return True
+        return True 
     
     def _pick_card_sm_mode_leadplay(self, data):
         
@@ -428,13 +468,15 @@ class HacBotV(PokerBot, Htapi):
         Pick a card!
         """
         # roundPlayers is in the correct order of shooting cards.
-        round_players = data['roundPlayers']
+        round_players = self.stat['roundPlayers']
           
         # Identify my position in this round
         my_pos = round_players.index(self.get_name())
   
 #         # Get players in next turn.
 #         self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
+        
+        return self._pick_card_as_mode(data)
         
         if my_pos == 0:
             card = self._pick_card_sm_mode_leadplay(data)            
@@ -445,62 +487,279 @@ class HacBotV(PokerBot, Htapi):
             
         return card
     
-    def _pick_card_antiscore_mode_leadplay(self, data):
+    def _pick_card_as_mode_leadplay(self, data):
         """
         I don't want to take a trick...
         """
-        my_hand_cards = self.stat['hand']
-        oppo_unused_cards = self.get_unused_cards(my_hand_cards)
-
+        my_avail_cards = self._get_avail_cards()
+        
+        my_hand_cards = self._get_hand_cards()
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+        
         candidates = []
-        current_min_point = None
-        for c in my_hand_cards:
-            as_point = self._calc_antiscore_point(c, oppo_unused_cards)
+        current_max_point = None
+        for c in my_avail_cards:
+            as_point = self._calc_as_point(c, oppo_unused_cards)
             
-            if current_min_point == None:
+            if current_max_point == None:
                 current_min_point = as_point
                 candidates = [c]
-            elif as_point < current_min_point:
+            elif as_point > current_min_point:
                 candidates = [c]
                 current_min_point = as_point
             else:
-                candidates += c
+                candidates.append(c)
                 
+        if len(candidates) == 0:
+            self.htapi.errmsg("BUG")
+        
         #
-        # Pick small rank cards from shortage suit.
+        # Try to make others eat 'QS'
+        #
+        spade_candidates = self.htapi.get_cards_by_suit(candidates, 'S')
+        if len(spade_candidates) > 0:
+            used_spade_cards = self._get_used_cards_by_suits(['S'])
+            if self.htapi.find_card(used_spade_cards, Card('QS')) != None:
+                for c in spade_candidates:
+                    if self._calc_as_point(c, oppo_unused_cards) == 1.0:
+                        return c
+
+        #
+        # Pick strong small heart cards first, so that I won't eat more later.
+        #
+        heart_candidates = self.htapi.get_cards_by_suit(candidates, 'H')
+        if len(heart_candidates) > 0:
+            for c in heart_candidates:
+                if self._calc_as_point(c, oppo_unused_cards) == 1.0:
+                    return c   
+
+        #
+        # Pick small rank cards from shortage suit first
         #
         card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
-           
+                 
+        for di in card_num_stat_sorted:
+            suit, num = di
+            if num == 0:
+                continue
             
+            prefer_candidates = self.htapi.get_cards_by_suit(candidates, suit)
+            if len(prefer_candidates) > 0:
+                return prefer_candidates[0]
         
+        self.htapi.errmsg("BUG")            
+
+    def _get_current_winner(self):
+        
+        round_players = self.stat['roundPlayers']
+        
+        round_cards = self._get_round_cards()
+        if len(round_cards) == 0:
+            self.errmsg("BUG")
+            
+        lead_card = round_cards[0]
+        
+        idx = 0
+        winner_idx = 0
+        for c in round_cards:
+            if c.get_suit() == lead_card.get_suit() and c.get_rank_num() > lead_card.get_rank_num():
+                winner_idx = idx
+            idx += 1
+            
+        winner = round_players[winner_idx]
+        
+        return winner
+
+    def _pick_card_as_mode_freeplay(self, data):
+        """
+        I am in midplay or last play. I don't have lead suit, so I can shoot anything.
+        """
+        my_avail_cards = self.htapi.arrange_cards(self._get_avail_cards())
+        my_hand_cards = self._get_hand_cards()
+        
+        round_cards = self._get_round_cards()
+        if len(round_cards) == 0:
+            self.errmsg("BUG")
+            
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+
+        #
+        # Shoot QS out if I have chance.
+        #
+        card = self.htapi.find_card(my_avail_cards, Card('QS'))
+        if card != None:
+            return card 
+
+        #
+        # Prefer AS, KS if the oppo has QS. Otherwise, KS, AS are not so dangerous...
+        #
+        if self.htapi.find_card(oppo_unused_cards, Card('QS')) != None:
+            card = self.htapi.find_card(my_avail_cards, Card('AS'))
+            if card != None:
+                return card
+            
+            card = self.htapi.find_card(my_avail_cards, Card('KS'))
+            if card != None:
+                return card            
+        
+        #
+        # Shoot dangerous heart while opponents still have hearts.
+        #
+        oppo_heart_cards = self.htapi.get_cards_by_suit(oppo_unused_cards, 'H')
+        if len(oppo_heart_cards) > 0:
+            my_heart_cards = self.htapi.get_cards_by_suit(my_avail_cards, 'H')
+            my_heart_cards = self.htapi.arrange_cards(my_heart_cards)
+            for c in reversed(my_heart_cards):
+                point = self._calc_as_point(c, oppo_unused_cards)
+                
+                if point < 0.5:
+                    return c
+        
+        #
+        # Shoot 'TC'
+        #
+        card = self.htapi.find_card(my_avail_cards, Card('TC'))
+        if card != None:
+            return card 
+        
+        #
+        # Choose the most dangerous cards 
+        #
+        candidates = []
+        as_point_min = None
+        for c in my_avail_cards:
+            this_as_point = self._calc_as_point(c, oppo_unused_cards)
+            
+            if self.htapi.calc_card_num_by_suit(oppo_unused_cards, c.get_suit()) == 0:
+                # Don't worry. The oppo won't send the suit again... so I won't eat the trick.
+                # But if I am the lead... I will eat 100%.
+                continue
+            
+            if as_point_min == None:
+                as_point_min = this_as_point
+                candidates = [c]
+            elif this_as_point < as_point_min:
+                as_point_min = this_as_point
+                candidates = [c]
+            else:
+                candidates.append(c)
+
+                
+        if len(candidates) > 0:
+            card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
+            
+            # Remove small cards in shortage suit.
+            for di in card_num_stat_sorted:
+                suit, num = di
+                if num == 0:
+                    continue
+                
+                prefer_candidates = self.htapi.get_cards_by_suit(candidates, suit)
+                if len(prefer_candidates) > 0:
+                    prefer_candidates = self.htapi.arrange_cards(prefer_candidates)
+                    return prefer_candidates[-1]
+
+        #
+        # Shoot the min as point card
+        #
+        candidates = []
+        as_point_min = None
+        for c in my_avail_cards:
+            this_as_point = self._calc_as_point(c, oppo_unused_cards)
+            
+            if as_point_min == None:
+                as_point_min = this_as_point
+                candidates = [c]
+            elif this_as_point < as_point_min:
+                as_point_min = this_as_point
+                candidates = [c]
+            else:
+                candidates.append(c)
+        
+        if len(candidates) == 0:
+            self.htapi.errmsg("BUG")
+                
+        candidates = self.htapi.arrange_cards(candidates)
+        return candidates[-1]  
     
-    def _pick_card_antiscore_mode_midplay(self, data):
+    def _pick_card_as_mode_midplay(self, data):
+        my_hand_cards = self._get_hand_cards()
+        my_avail_cards = self._get_avail_cards()
         
+        round_cards = self._get_round_cards()
+        lead_card = round_cards[0]
+        
+        oppo_same_suit_cards = self._get_unused_cards_by_suits(my_hand_cards, [lead_card.get_suit()])
+        
+        round_card_score = self.htapi.calc_score(round_cards)
+
+        if self._do_i_have_lead_suit() == True:
+            #
+            # I have the lead suit... Don't have many choice...
+            #
+            filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+            card2shoot = self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=False)
+            if card2shoot != None:
+                return card2shoot
+            else:
+                if self.stat['sm_mode'] == False and len(oppo_same_suit_cards) > 9:
+                    return self.htapi.pick_big_card(my_avail_cards)
+                else:
+                    return self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
+        else:
+            #
+            # I don't have the same suit. Can do anything.
+            #
+            return self._pick_card_as_mode_freeplay(data)
+                
         self.htapi.errmsg("BUG")
         
-    def _pick_card_antiscore_mode_lastplay(self, data):
+    def _pick_card_as_mode_lastplay(self, data):
+        my_hand_cards = self._get_hand_cards()
+        my_avail_cards = self._get_avail_cards()
         
-        self.htapi.errmsg("BUG")
+        round_cards = self._get_round_cards()
+        lead_card = round_cards[0]
         
-    def _pick_card_antiscore_mode(self, data):
+        oppo_same_suit_cards = self._get_unused_cards_by_suits(my_hand_cards, [lead_card.get_suit()])
+        
+        round_card_score = self.htapi.calc_score(round_cards)
+
+        if self._do_i_have_lead_suit() == True:
+            #
+            # I have the lead suit... Don't have many choice...
+            #
+            if round_card_score > 0:
+                filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+                card2shoot = self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=False)
+                if card2shoot != None:
+                    return card2shoot
+                else:
+                    if self.stat['sm_mode'] == False:
+                        return self.htapi.pick_big_card(my_avail_cards)
+                    else:
+                        return self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
+            else:
+                return self.htapi.pick_big_card(my_avail_cards)
+        else:
+            return self._pick_card_as_mode_freeplay(data)
+        
+    def _pick_card_as_mode(self, data):
         """
         Pick a card!
         """
         # roundPlayers is in the correct order of shooting cards.
-        round_players = data['roundPlayers']
+        round_players = self.stat['roundPlayers']
           
         # Identify my position in this round
         my_pos = round_players.index(self.get_name())
-  
-#         # Get players in next turn.
-#         self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
         
         if my_pos == 0:
-            card = self._pick_card_antiscore_mode_leadplay(data)            
+            card = self._pick_card_as_mode_leadplay(data)            
         elif my_pos == 3:
-            card = self._pick_card_antiscore_mode_lastplay(data)
+            card = self._pick_card_as_mode_lastplay(data)
         else:
-            card = self._pick_card_antiscore_mode_midplay(data)
+            card = self._pick_card_as_mode_midplay(data)
             
         return card
         
@@ -508,24 +767,22 @@ class HacBotV(PokerBot, Htapi):
         """
         Event: My turn to shoot a card.
         """
-#         # roundPlayers is in the correct order of shooting cards.
-#         round_players = data['roundPlayers']
-#          
-#         # Identify my position in this round
-#         my_pos = round_players.index(self.get_name())
-#  
-#         # Get players in next turn.
-#         self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
-#         
         self.stat['hand'] = [Card(x) for x in data['self']['cards']]
         self.stat['hand'] = self.htapi.arrange_cards(self.stat['hand'])
-#         my_hand_cards = self.htapi.clone_cards(self.stat['hand'])
-#         my_avail_cards = self.htapi.clone_cards([Card(x) for x in data['self']['candidateCards']])    
-
+        
+        self.stat['avail'] = self.htapi.arrange_cards([Card(x) for x in data['self']['candidateCards']])
+  
+        self.stat['roundPlayers'] = data['roundPlayers'][:] 
+  
+        # Get players in next turn.
+        round_players = self.stat['roundPlayers']
+        my_pos = round_players.index(self.get_name())
+        self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
+        
         if self._pick_card_should_i_sm(data) == True:
             card2shoot = self._pick_card_sm_mode(data)
         else:
-            card2shoot = self._pick_card_antiscore_mode(data)
+            card2shoot = self._pick_card_as_mode(data)
 
         self.htapi.dbg(self.get_name() + " shoot card: " + format(card2shoot) + ", from: " + format(data['self']['cards']) + ", next players: " + format(self.stat['nextPlayers']))
         return card2shoot.toString()
@@ -538,7 +795,7 @@ class HacBotV(PokerBot, Htapi):
         # If I know the shortage status of players, can have advantage to predict.
         #
         
-        round_cards = self.stat['roundCard']
+        round_cards = self._get_round_cards()
         
         if len(round_cards) <= 1:
             # The turn player is leader. Ignore.
@@ -580,12 +837,12 @@ class HacBotV(PokerBot, Htapi):
     def ______pick(self):
         pass
         
-    def _round_end_detect_shoot_moon_ability(self):
+    def _round_end_detect_sm_ability(self):
         #
         # Check if somebody get any score and give up shoot-moon mode.
         #
         
-        if self.stat['shoot_moon_mode'] == False:
+        if self.stat['sm_mode'] == False:
             # Already disable shoot moon mode.
             return
         
@@ -594,14 +851,14 @@ class HacBotV(PokerBot, Htapi):
             score = self.htapi.calc_score(lp['pick'], is_expose_ah=self.stat['expose_ah_mode'])
             if score != 0 and lp['playerName'] != self.get_name():
                 self.htapi.dbg("Give up shoot-moon mode...So sad.")
-                self.stat['shoot_moon_mode'] = False
+                self.stat['sm_mode'] = False
                 
     def round_end(self, data):
         """
         Event: round end
         """
         round_player_name = data['roundPlayer']
-        round_cards = self.stat['roundCard']
+        round_cards = self._get_round_cards()
         
         local_player = self.players[round_player_name]
         local_player['pick'] += round_cards
@@ -609,12 +866,14 @@ class HacBotV(PokerBot, Htapi):
         self.htapi.dbg("Player: " + round_player_name + " picked 4 cards: " + format(round_cards), " overall pick: " + format(local_player['pick']))
         
         # Disable shoot moon mode if somebody rx a score.
-        self._round_end_detect_shoot_moon_ability()
+        self._round_end_detect_sm_ability()
         
         #
         # Reset round data
         #
         self.stat['roundCard'] = []
+        self.stat['nextPlayers'] = []
+        self.stat['roundPlayers'] = []
     
     def deal_end(self, data):
         """
@@ -628,12 +887,12 @@ class HacBotV(PokerBot, Htapi):
             local_player = self.players[player['playerName']]
             local_player['score_accl'] = player['gameScore']
             if player['shootingTheMoon'] == True:
-                local_player['shoot_moon'] += 1
+                local_player['sm'] += 1
                 if player['playerName'] == self.get_name():
                     self.stat['pass3_sm_ability_history'].append(self.stat['pass3_sm_ability'])
             
             if player['gameScore'] == 0 and self.get_name() == player['playerName']:
-                self.stat['pass3_antiscore_ability_history'].append(self.stat['pass3_antiscore_ability'])
+                self.stat['pass3_as_ability_history'].append(self.stat['pass3_as_ability'])
 
         for key in self.players.keys():
             p = self.players[key]
@@ -644,10 +903,10 @@ class HacBotV(PokerBot, Htapi):
             p['pick'] = []
         
         self.stat['usedCard'] = []
-        self.stat['shoot_moon_mode'] = True
+        self.stat['sm_mode'] = True
         self.stat['expose_ah_mode'] = False
         self.stat['pass3_sm_ability'] = 0.0
-        self.stat['pass3_antiscore_ability'] = 0.0
+        self.stat['pass3_as_ability'] = 0.0
     
     def game_over(self, data):
         """

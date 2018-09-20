@@ -474,6 +474,10 @@ class Htapi():
         output = sorted(card_list, key=lambda v: (v.get_suit_num() * 20 + v.get_rank_num()))
         return output
     
+    def arrange_cards_by_rank(self, card_list):
+        output = sorted(card_list, key=lambda v: v.get_rank_num())
+        return output
+    
     def shuffle_cards(self, card_list):
         random.shuffle(card_list)
         return card_list
