@@ -502,11 +502,11 @@ class HacBotV(PokerBot, Htapi):
             as_point = self._calc_as_point(c, oppo_unused_cards)
             
             if current_max_point == None:
-                current_min_point = as_point
+                current_max_point = as_point
                 candidates = [c]
-            elif as_point > current_min_point:
+            elif as_point > current_max_point:
                 candidates = [c]
-                current_min_point = as_point
+                current_max_point = as_point
             else:
                 candidates.append(c)
                 
