@@ -6,7 +6,7 @@ class HacBotV(PokerBot, Htapi):
     Anti-Score Mode (AS)
     Shoot-Moon Mode (SM)
     """
-    SM_THOLD_PASS3 = 8.0
+    SM_THOLD_PASS3 = 10.0
     SM_THOLD_PICK = 12.0
     AS_THOLD_PASS3 = 8.0
     
