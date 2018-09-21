@@ -829,9 +829,9 @@ def pseudo_contest():
     # If you feel the msg is to annoying, disable it in Htapi
     #
     mybot = HacBotV('HacBotV', is_debug=True)
-    opponent1 = HacBot('HacBot-1')
-    opponent2 = HacBot('HacBot-2')
-    opponent3 = HacBot('HacBot-3')
+    opponent1 = HacBotIV('HacBot-1')
+    opponent2 = HacBotIV('HacBot-2')
+    opponent3 = HacBotIV('HacBot-3')
     players = [mybot, opponent1, opponent2, opponent3]
 
     #    
