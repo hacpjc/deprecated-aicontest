@@ -7,7 +7,7 @@ class HacBotV(PokerBot, Htapi):
     Shoot-Moon Mode (SM)
     """
     SM_THOLD_PASS3 = 8.0
-    SM_THOLD_PICK = 10.0
+    SM_THOLD_PICK = 12.0
     AS_THOLD_PASS3 = 8.0
     
     def __init__(self, name, is_debug=False):
@@ -286,23 +286,9 @@ class HacBotV(PokerBot, Htapi):
     
     def _pass_cards_calc_as_ability(self, data=None):
         """
-        Detect if I can shoot the moon.
+        Detect if I can anti-score
         """
-        my_hand_cards = self._get_hand_cards()
-        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
-         
-        my_as_point = 0.0
-        for c in my_hand_cards:
-            this_as_point = self._calc_as_point(c, oppo_unused_cards)
-            if this_as_point >= 1.0:
-                my_as_point += this_as_point * 2
-            else:    
-                my_as_point += this_as_point       
-        
-        my_as_point *= (13 / float(len(my_hand_cards)))
-        my_as_point = round(my_as_point, 3)
-        print("my_hand_cards: ", my_hand_cards, ", as ability -> " + format(my_as_point))
-        return my_as_point 
+        return self._pick_card_calc_as_ability(data=None)
     
     def _pass_cards_sm_mode(self, data):
         """
@@ -355,8 +341,9 @@ class HacBotV(PokerBot, Htapi):
             return self._pass_cards_sm_mode(data)
         else:
             
-            if as_ability >= self.AS_THOLD_PASS3:
-                self.stat['sm_mode'] = False
+#             if as_ability >= self.AS_THOLD_PASS3:
+#                 self.htapi.dbg("Possibly do not have chance to sm because of high as ability: ", format(as_ability))
+#                 self.stat['sm_mode'] = False
             
             self.htapi.dbg("anti score mode pass3")
             return self._pass_cards_as_mode(data)
@@ -451,15 +438,36 @@ class HacBotV(PokerBot, Htapi):
         print("my_hand_cards: ", my_hand_cards, ", sm ability -> " + format(my_sm_point))
         return my_sm_point 
         
+    def _pick_card_calc_as_ability(self, data=None):
+        """
+        Detect if I can anti-score
+        """
+        my_hand_cards = self._get_hand_cards()
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+         
+        my_as_point = 0.0
+        for c in my_hand_cards:
+            this_as_point = self._calc_as_point(c, oppo_unused_cards)
+            if this_as_point >= 1.0:
+                my_as_point += this_as_point * 2
+            else:    
+                my_as_point += this_as_point       
+        
+        my_as_point *= (13 / float(len(my_hand_cards)))
+        my_as_point = round(my_as_point, 3)
+        print("my_hand_cards: ", my_hand_cards, ", as ability -> " + format(my_as_point))
+        return my_as_point 
+        
     def _pick_card_should_i_sm(self, data):
         """
         Predict my ability to shoot moon.
-        """      
+        """  
+        sm_ability = self._pick_card_calc_sm_ability(data=None)
+        as_ability = self._pick_card_calc_as_ability(data=None)
+            
         if self.stat['sm_mode'] == False:
             return False
-        
-        sm_ability = self._pick_card_calc_sm_ability(data=None)
-        
+
         if sm_ability > self.SM_THOLD_PICK:
             return True
                 
