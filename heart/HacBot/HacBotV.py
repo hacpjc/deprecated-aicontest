@@ -6,7 +6,8 @@ class HacBotV(PokerBot, Htapi):
     Anti-Score Mode (AS)
     Shoot-Moon Mode (SM)
     """
-    SM_THOLD_PASS3 = 900.0
+    SM_THOLD_PASS3 = 8.0
+    SM_THOLD_PICK = 10.0
     AS_THOLD_PASS3 = 8.0
     
     def __init__(self, name, is_debug=False):
@@ -283,7 +284,7 @@ class HacBotV(PokerBot, Htapi):
             
         return self._pick_card_calc_sm_ability(data=None)
     
-    def _pass_cards_calc_as_ability(self, data):
+    def _pass_cards_calc_as_ability(self, data=None):
         """
         Detect if I can shoot the moon.
         """
@@ -297,7 +298,10 @@ class HacBotV(PokerBot, Htapi):
                 my_as_point += this_as_point * 2
             else:    
                 my_as_point += this_as_point       
-            
+        
+        my_as_point *= (13 / float(len(my_hand_cards)))
+        my_as_point = round(my_as_point, 3)
+        print("my_hand_cards: ", my_hand_cards, ", as ability -> " + format(my_as_point))
         return my_as_point 
     
     def _pass_cards_sm_mode(self, data):
@@ -342,13 +346,18 @@ class HacBotV(PokerBot, Htapi):
         self.htapi.dbg("Select 3 cards from: " + format(self.stat['hand']))
         
         sm_ability = self._pass_cards_calc_sm_ability()
+        as_ability = self._pass_cards_calc_as_ability()
         self.stat['pass3_sm_ability'] = sm_ability
-        self.stat['pass3_as_ability'] = self._pass_cards_calc_as_ability(data)
-        self.htapi.dbg("Ability stat. sm: ", format(sm_ability), "as: ", format(self.stat['pass3_as_ability']))
+        self.stat['pass3_as_ability'] = as_ability
+        self.htapi.dbg("Ability stat. sm: ", format(sm_ability), ", as: ", format(self.stat['pass3_as_ability']))
         if sm_ability > self.SM_THOLD_PASS3:
             self.htapi.dbg("shoot moon mode pass3: " + str(sm_ability))
             return self._pass_cards_sm_mode(data)
         else:
+            
+            if as_ability >= self.AS_THOLD_PASS3:
+                self.stat['sm_mode'] = False
+            
             self.htapi.dbg("anti score mode pass3")
             return self._pass_cards_as_mode(data)
 
@@ -435,30 +444,243 @@ class HacBotV(PokerBot, Htapi):
             if this_sm_point >= 1.0:
                 my_sm_point += this_sm_point * 2
             else:    
-                my_sm_point += this_sm_point       
-            
+                my_sm_point += this_sm_point
+                
+        my_sm_point *= (13 / float(len(my_hand_cards)))
+        my_sm_point = round(my_sm_point, 3)       
+        print("my_hand_cards: ", my_hand_cards, ", sm ability -> " + format(my_sm_point))
         return my_sm_point 
         
     def _pick_card_should_i_sm(self, data):
         """
         Predict my ability to shoot moon.
-        """
+        """      
         if self.stat['sm_mode'] == False:
             return False
+        
+        sm_ability = self._pick_card_calc_sm_ability(data=None)
+        
+        if sm_ability > self.SM_THOLD_PICK:
+            return True
                 
-        return True 
+        return False
     
     def _pick_card_sm_mode_leadplay(self, data):
+        """
+        I am the leader. If I have sm ability. Eat! Eat! Eat you to the hole!
+        """       
+        my_hand_cards = self._get_hand_cards()
+        my_avail_cards = self._get_avail_cards()
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+        
+        for c in my_avail_cards:
+            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+            
+            if this_sm_point >= 1.0 and c.get_suit() == 'H':
+                self.htapi.dbg("This card will win..." + format(c))
+                return c
+            
+        for c in my_avail_cards:
+            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+            
+            if this_sm_point >= 1.0 and c.get_suit() == 'S':
+                self.htapi.dbg("This card will win..." + format(c))
+                return c
+        
+        for c in my_avail_cards:
+            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+            
+            if this_sm_point >= 1.0:
+                self.htapi.dbg("This card will win..." + format(c))
+                return c
+        
+        # Pick short suit candidates
+        self.htapi.dbg("Low strength stage... I am weak :-(.")
+        
+        max_sm_point = 0
+        candidates = []
+        for c in my_avail_cards:
+            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+            
+            if len(candidates) == 0:
+                candidates = [c]
+                max_sm_point = this_sm_point
+            elif this_sm_point > max_sm_point:
+                candidates = [c]
+                max_sm_point = this_sm_point    
+            else:
+                candidates.append(c)
+        
+        card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
+                 
+        for di in card_num_stat_sorted:
+            suit, num = di
+            if num == 0:
+                continue
+            
+            prefer_candidates = self.htapi.get_cards_by_suit(my_avail_cards, suit)
+            if len(prefer_candidates) > 0:
+                prefer_candidates = self.htapi.arrange_cards(prefer_candidates)
+                return prefer_candidates[-1]
+        
+        self.htapi.errmsg("BUG")
+        
+    def _pick_card_sm_mode_freeplay(self, data):
+        """
+        Do not have the same suit to follow. So I am free to shoot.
+        """
+        my_hand_cards = self._get_hand_cards()
+        my_avail_cards = self._get_avail_cards()
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+        
+        my_noscore_cards = self.htapi.find_no_score_cards(my_avail_cards)
+        
+        if len(my_noscore_cards) == 0:
+            # Too bad... I have to give up sm. Turn to as mode.
+            return self._pick_card_as_mode(data)
+        
+        min_sm_cards = []
+        min_sm_point = None
+        for c in my_noscore_cards:
+            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+            if min_sm_point == None:
+                min_sm_point = this_sm_point
+                min_sm_cards = [c]
+            elif this_sm_point < min_sm_point:
+                min_sm_point = this_sm_point
+                min_sm_cards = [c]
+            else:
+                min_sm_cards.append(c)
+                
+        card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
+                 
+        for di in card_num_stat_sorted:
+            suit, num = di
+            if num == 0:
+                continue
+            
+            prefer_candidates = self.htapi.get_cards_by_suit(min_sm_cards, suit)
+            if len(prefer_candidates) > 0:
+                prefer_candidates = self.htapi.arrange_cards(prefer_candidates)
+                return prefer_candidates[-1] # TBD: Use the big rank one!?
         
         self.htapi.errmsg("BUG")
     
     def _pick_card_sm_mode_midplay(self, data):
+        """
+        I am the mid player. 
         
-        self.htapi.errmsg("BUG")
+        Try to win...
+        """
+        round_cards = self._get_round_cards()
+        lead_card = round_cards[0]
+        filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+        round_card_score = self.htapi.calc_score(round_cards)
+        
+        my_hand_cards = self._get_hand_cards()
+        my_avail_cards = self._get_avail_cards()
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+        
+        if self._do_i_have_lead_suit() == True:
+            # Try to win this round.
+            if self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards) == None:
+                # ...I don't have bigger card to win.
+                self.htapi.dbg("Give up sm... Oops")
+                return self._pick_card_as_mode(data)
+            else:
+                # I have chance to win.            
+                king_cards = []
+                max_sm_point = 0
+                my_avail_cards = self.htapi.arrange_cards(my_avail_cards)
+                for c in my_avail_cards:
+                    this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+                    
+                    if this_sm_point > max_sm_point:
+                        max_sm_point = this_sm_point
+                        king_cards = [c]
+                    elif this_sm_point < max_sm_point:
+                        pass
+                    else:
+                        king_cards.append(c)
+                        
+                print(" + king cards to win next players are: ", format(king_cards))
+                
+                if len(king_cards) == 0:
+                    self.htapi.errmsg("BUG")                        
+                
+                return king_cards[0]
+        else:
+            if round_card_score > 0:
+                # Cannot win this round. Have to give up shoot moon.
+                self.htapi.dbg("Give up sm... Oops")
+                return self._pick_card_as_mode(data)
+            else: 
+                return self._pick_card_sm_mode_freeplay(data)
         
     def _pick_card_sm_mode_lastplay(self, data):
+        """
+        I am the last player. I can decide to win or not to win.
         
-        self.htapi.errmsg("BUG")
+        Try to win...maybe.
+        """
+        round_cards = self._get_round_cards()
+        lead_card = round_cards[0]
+        filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+        round_card_score = self.htapi.calc_score(round_cards)
+        
+        my_hand_cards = self._get_hand_cards()
+        my_avail_cards = self._get_avail_cards()
+        oppo_unused_cards = self._get_unused_cards(my_hand_cards)
+        
+        if self._do_i_have_lead_suit() == True:
+            if round_card_score > 0:
+                #
+                # Have score on this round. I have to decide to take or not to take...
+                #
+                
+                # Try to win...
+                bigger_card = self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
+                if bigger_card != None:
+                    return bigger_card
+                else:
+                    # Cannot win this round. Have to give up shoot moon.
+                    self.htapi.dbg("Give up sm... Oops")
+                    return self._pick_card_as_mode(data)
+            else:
+                #            
+                # Have no score, I can give up to win if I have a too weak point.
+                #
+                same_suit_card_num = self.htapi.calc_card_num_by_suit(my_hand_cards + oppo_unused_cards, lead_card.get_suit())
+                
+                min_sm_card = None
+                min_sm_point = None
+                for c in my_avail_cards:
+                    this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+                    if min_sm_point == None:
+                        min_sm_point = this_sm_point
+                        min_sm_card = c
+                    elif this_sm_point < min_sm_point:
+                        min_sm_point = this_sm_point
+                        min_sm_card = c
+                
+                if same_suit_card_num > 9:
+                    return min_sm_card
+                else:
+                    # Try to win this round...
+                    bigger_card = self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
+                    if bigger_card != None:
+                        return bigger_card
+                    else:
+                        # Cannot win this round.
+                        return min_sm_card
+                                        
+        else:
+            if round_card_score > 0:
+                # Cannot win this round. Have to give up shoot moon.
+                self.htapi.dbg("Give up sm... Oops")
+                return self._pick_card_as_mode(data)
+            else: 
+                return self._pick_card_sm_mode_freeplay(data)
         
     def _pick_card_sm_mode(self, data):
         """
@@ -469,11 +691,6 @@ class HacBotV(PokerBot, Htapi):
           
         # Identify my position in this round
         my_pos = round_players.index(self.get_name())
-  
-#         # Get players in next turn.
-#         self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
-        
-        return self._pick_card_as_mode(data)
         
         if my_pos == 0:
             card = self._pick_card_sm_mode_leadplay(data)            
@@ -777,8 +994,10 @@ class HacBotV(PokerBot, Htapi):
         self.stat['nextPlayers'] = data['roundPlayers'][(my_pos + 1):]
         
         if self._pick_card_should_i_sm(data) == True:
+            self.htapi.dbg("sm mode")
             card2shoot = self._pick_card_sm_mode(data)
         else:
+            self.htapi.dbg("as mode")
             card2shoot = self._pick_card_as_mode(data)
 
         self.htapi.dbg(self.get_name() + " shoot card: " + format(card2shoot) + ", from: " + format(data['self']['cards']) + ", next players: " + format(self.stat['nextPlayers']))
