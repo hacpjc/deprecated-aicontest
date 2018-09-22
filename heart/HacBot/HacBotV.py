@@ -7,7 +7,7 @@ class HacBotV(PokerBot, Htapi):
     Shoot-Moon Mode (SM)
     """
     SM_THOLD_PASS3 = 10.0
-    SM_THOLD_PICK = 12.0
+    SM_THOLD_PICK = 13.0
     AS_THOLD_PASS3 = 8.0
     
     def __init__(self, name, is_debug=False):
@@ -791,6 +791,41 @@ class HacBotV(PokerBot, Htapi):
         winner = round_players[winner_idx]
         
         return winner
+    
+    def _is_sm_possible(self):
+        #
+        # Check if there're 2 player having score. Then it's impossible to shoot moon.
+        #
+        have_score_player = 0
+        for key in self.players:
+            lp = self.players[key]
+            score = self.htapi.calc_score(lp['pick'], is_expose_ah=self.stat['expose_ah_mode'])
+            if score != 0:
+                have_score_player += 1
+        
+        if have_score_player >= 2:
+            return False # Not possible to shoot moon.
+        
+        return True
+                
+    def _check_current_winner_sm(self):
+        """
+        Detect the round winner is now shooting moon.
+        """
+        if self._is_sm_possible() == False:
+            return False
+        
+        winner = self._get_current_winner()
+        pl = self.players[winner]
+        
+        winner_picked_cards = pl['pick']
+        
+        winner_picked_score_cards = self.htapi.find_score_cards(winner_picked_cards)
+        
+        if len(winner_picked_score_cards) > 7:
+            return True # Possibly want to shoot moon.
+        
+        return False
 
     def _pick_card_as_mode_freeplay(self, data):
         """
@@ -804,7 +839,56 @@ class HacBotV(PokerBot, Htapi):
             self.errmsg("BUG")
             
         oppo_unused_cards = self._get_unused_cards(my_hand_cards)
-
+        
+        if self._check_current_winner_sm() == True:
+            # Current winner is a sm player. Prefer no score card here.
+            self.htapi.dbg("Current winner player is a suspicous pig.")
+            if self.htapi.find_card(oppo_unused_cards, Card('QS')) != None:
+                card = self.htapi.find_card(my_avail_cards, Card('AS'))
+                if card != None:
+                    return card
+                
+                card = self.htapi.find_card(my_avail_cards, Card('KS'))
+                if card != None:
+                    return card
+                
+                candidates = []
+                as_point_min = None
+                for c in my_avail_cards:
+                    this_as_point = self._calc_as_point(c, oppo_unused_cards)
+                    
+                    if self.htapi.calc_card_num_by_suit(oppo_unused_cards, c.get_suit()) == 0:
+                        # Don't worry. The oppo won't send the suit again... so I won't eat the trick.
+                        # But if I am the lead... I will eat 100%.
+                        continue
+                    
+                    if self.htapi.calc_score([c]) != 0:
+                        # Avoid giving out score cards for sm player
+                        continue
+                    
+                    if as_point_min == None:
+                        as_point_min = this_as_point
+                        candidates = [c]
+                    elif this_as_point < as_point_min:
+                        as_point_min = this_as_point
+                        candidates = [c]
+                    else:
+                        candidates.append(c)
+        
+                        
+                if len(candidates) > 0:
+                    card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
+                    
+                    # Remove small cards in shortage suit.
+                    for di in card_num_stat_sorted:
+                        suit, num = di
+                        if num == 0:
+                            continue
+                        
+                        prefer_candidates = self.htapi.get_cards_by_suit(candidates, suit)
+                        if len(prefer_candidates) > 0:
+                            prefer_candidates = self.htapi.arrange_cards(prefer_candidates)
+                            return prefer_candidates[-1]
         #
         # Shoot QS out if I have chance.
         #
