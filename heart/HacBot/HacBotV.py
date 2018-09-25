@@ -5,6 +5,8 @@ class HacBotV(PokerBot, Htapi):
     """
     Anti-Score Mode (AS)
     Shoot-Moon Mode (SM)
+    ...Player: HacBotV, score: -29, score_accl: -4860, score_negative_accl:-63360, shoot_moon_accl: 195, winner: [1752, 1935, 1464, 1249]
+    ...Player: HacBotV, score: 0, score_accl: 1168, score_negative_accl:-49844, shoot_moon_accl: 166, winner: [2244, 1883, 1245, 1028]
     """
     SM_THOLD_PASS3 = 11.0
     SM_THOLD_PICK = 14.0
@@ -926,7 +928,35 @@ class HacBotV(PokerBot, Htapi):
         #
         card = self.htapi.find_card(my_avail_cards, Card('TC'))
         if card != None:
-            return card 
+            return card
+        
+        # 
+        # Avoid eating 'TC' 
+        #
+        if self.htapi.find_card(oppo_unused_cards, Card('TC')) != None:
+            my_club_cards = self.htapi.get_cards_by_suit(my_hand_cards, 'C')
+            
+            if len(my_club_cards) > 0:
+                my_small_club_card = self.htapi.pick_small_card(my_club_cards)
+                if my_small_club_card.get_rank_num() < Card('TC'):
+                    # I still have small club. Won't eat 'TC'. 
+                    pass
+                else:
+                    card = self.htapi.find_card(my_avail_cards, Card('AC'))
+                    if card != None:
+                        return card
+                    
+                    card = self.htapi.find_card(my_avail_cards, Card('KC'))
+                    if card != None:
+                        return card
+                    
+                    card = self.htapi.find_card(my_avail_cards, Card('QC'))
+                    if card != None:
+                        return card
+                    
+                    card = self.htapi.find_card(my_avail_cards, Card('JC'))
+                    if card != None:
+                        return card
         
         #
         # Choose the most dangerous cards 
@@ -997,8 +1027,6 @@ class HacBotV(PokerBot, Htapi):
         
         oppo_same_suit_cards = self._get_unused_cards_by_suits(my_hand_cards, [lead_card.get_suit()])
         
-        round_card_score = self.htapi.calc_score(round_cards)
-
         if self._do_i_have_lead_suit() == True:
             #
             # I have the lead suit... Don't have many choice...
@@ -1007,7 +1035,7 @@ class HacBotV(PokerBot, Htapi):
             card2shoot = self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=False)
             if card2shoot != None:
                 return card2shoot
-            else:
+            else:                
                 if self.stat['sm_mode'] == False and len(oppo_same_suit_cards) > 9:
                     return self.htapi.pick_big_card(my_avail_cards)
                 else:
@@ -1029,13 +1057,13 @@ class HacBotV(PokerBot, Htapi):
         
         oppo_same_suit_cards = self._get_unused_cards_by_suits(my_hand_cards, [lead_card.get_suit()])
         
-        round_card_score = self.htapi.calc_score(round_cards)
+        round_score_cards = self.htapi.find_score_cards(round_cards)
 
         if self._do_i_have_lead_suit() == True:
             #
             # I have the lead suit... Don't have many choice...
             #
-            if round_card_score > 0:
+            if len(round_score_cards) > 0:
                 filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
                 card2shoot = self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=False)
                 if card2shoot != None:
