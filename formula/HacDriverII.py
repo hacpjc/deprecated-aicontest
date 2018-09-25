@@ -58,10 +58,10 @@ class HacDriverII(Hacjpg):
             # history
             'history_max': 10,
             # speed error tolerance
-            'speed_max': 0.95,
-            'speed_min': 0.60,
-            'speed_uturn': 0.60,
-            'speed_turn': 0.65,
+            'speed_max': 1.00,
+            'speed_min': 0.80,
+            'speed_uturn': 0.70,
+            'speed_turn': 0.80,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -458,6 +458,9 @@ class HacDriverII(Hacjpg):
             if abs(self.dyn['ri_angle'] - 90) < 10 and abs(ri_cpoint_angle) < 10:
                 # Possibly in strait road. Raise speed.
                 self.update_speed_abs(increase=True)
+            
+            if abs(self.dyn['ri_angle'] - 90) > 15:
+                self.update_speed_abs(increase=False)
         elif ri_area_percent >= 65:
             # Turn
             self.update_speed_abs(increase=False)
@@ -804,7 +807,7 @@ class HacDriverII(Hacjpg):
         if self.dyn['road_obstacle'] == True:
             
             if allap['black'] > 20:
-                self.dyn['tho_manual_ctrl'] = -0.15
+                self.dyn['tho_manual_ctrl'] = -0.20
             
             my_position = self.history_get_latest_position()
             
@@ -816,7 +819,7 @@ class HacDriverII(Hacjpg):
                     msg("Bee. Bee. Bee")
                     
                     if self.history_get_brake() > 0:
-                        self.dyn['sta_manual_ctrl'] = 10
+                        self.dyn['sta_manual_ctrl'] = 12
                     return
             else:
                 # Goto right
@@ -825,7 +828,7 @@ class HacDriverII(Hacjpg):
                 else:
                     msg("Bee. Bee. Bee")
                     if self.history_get_brake() > 0:
-                        self.dyn['sta_manual_ctrl'] = -10
+                        self.dyn['sta_manual_ctrl'] = -12
                     return
         
         if allap['black'] > 30 and self.history_get_speed() < 0.04:
