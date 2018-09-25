@@ -5,11 +5,10 @@ class HacBotV(PokerBot, Htapi):
     """
     Anti-Score Mode (AS)
     Shoot-Moon Mode (SM)
-    ...Player: HacBotV, score: -29, score_accl: -4860, score_negative_accl:-63360, shoot_moon_accl: 195, winner: [1752, 1935, 1464, 1249]
-    ...Player: HacBotV, score: 0, score_accl: 1168, score_negative_accl:-49844, shoot_moon_accl: 166, winner: [2244, 1883, 1245, 1028]
+    ...Player: HacBotV, score: -8, score_accl: 21499, score_negative_accl:-54317, shoot_moon_accl: 254, winner: [2262, 1816, 1234, 1088]
     """
     SM_THOLD_PASS3 = 10.0
-    SM_THOLD_PICK = 13.0
+    SM_THOLD_PICK = 14.0
     AS_THOLD_PASS3 = 8.0
     
     def __init__(self, name, is_debug=False):
