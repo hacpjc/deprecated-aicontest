@@ -1,6 +1,7 @@
 # coding=UTF-8
 import os, sys, json, random
 from PokerBot import Card, system_log, Htapi
+from random import shuffle
 
 class PseudoHeart(Htapi):
     """
@@ -801,6 +802,8 @@ class PseudoHeart(Htapi):
         self.game_over()
         
         self.show_score()
+
+        random.shuffle(self.player_tups)
 
     def game_loop(self, loop_max=1):
         for loop in range(1, loop_max + 1):

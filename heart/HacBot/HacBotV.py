@@ -516,7 +516,9 @@ class HacBotV(PokerBot, Htapi):
                 max_sm_point = this_sm_point
             elif this_sm_point > max_sm_point:
                 candidates = [c]
-                max_sm_point = this_sm_point    
+                max_sm_point = this_sm_point
+            elif this_sm_point < max_sm_point:
+                pass    
             else:
                 candidates.append(c)
         
@@ -558,6 +560,8 @@ class HacBotV(PokerBot, Htapi):
             elif this_sm_point < min_sm_point:
                 min_sm_point = this_sm_point
                 min_sm_cards = [c]
+            elif this_sm_point > min_sm_point:
+                pass
             else:
                 min_sm_cards.append(c)
                 
@@ -730,6 +734,8 @@ class HacBotV(PokerBot, Htapi):
             elif as_point > current_max_point:
                 candidates = [c]
                 current_max_point = as_point
+            elif as_point < current_max_point:
+                pass
             else:
                 candidates.append(c)
                 
@@ -844,52 +850,68 @@ class HacBotV(PokerBot, Htapi):
         if self._check_current_winner_sm() == True:
             # Current winner is a sm player. Prefer no score card here.
             self.htapi.dbg("Current winner player is a suspicous pig.")
+             
             if self.htapi.find_card(oppo_unused_cards, Card('QS')) != None:
+                # I don't want to eat QS
                 card = self.htapi.find_card(my_avail_cards, Card('AS'))
                 if card != None:
                     return card
-                
+                 
                 card = self.htapi.find_card(my_avail_cards, Card('KS'))
                 if card != None:
                     return card
+            
+            # Shoot heart card but reserve the biggest rank
+            my_heart_cards = self.htapi.get_cards_by_suit(my_avail_cards, 'H')
+            if len(my_heart_cards) >= 2:
+                my_heart_cards = self.htapi.arrange_cards(my_heart_cards)
                 
-                candidates = []
-                as_point_min = None
-                for c in my_avail_cards:
-                    this_as_point = self._calc_as_point(c, oppo_unused_cards)
-                    
-                    if self.htapi.calc_card_num_by_suit(oppo_unused_cards, c.get_suit()) == 0:
-                        # Don't worry. The oppo won't send the suit again... so I won't eat the trick.
-                        # But if I am the lead... I will eat 100%.
+                my_2nd_heart_card = my_heart_cards[-2]
+                score = self._calc_as_point(my_2nd_heart_card, oppo_unused_cards)
+                
+                if score < 0.5:
+                    # Remove the 2nd dangerous heart.
+                    return my_2nd_heart_card
+            
+            # Shoot no-score cards     
+            candidates = []
+            as_point_min = None
+            for c in my_avail_cards:
+                this_as_point = self._calc_as_point(c, oppo_unused_cards)
+                 
+                if self.htapi.calc_card_num_by_suit(oppo_unused_cards, c.get_suit()) == 0:
+                    # Don't worry. The oppo won't send the suit again... so I won't eat the trick.
+                    # But if I am the lead... I will eat 100%.
+                    continue
+                 
+                if self.htapi.calc_score([c]) != 0:
+                    # Avoid giving out score cards for sm player
+                    continue
+                 
+                if as_point_min == None:
+                    as_point_min = this_as_point
+                    candidates = [c]
+                elif this_as_point < as_point_min:
+                    as_point_min = this_as_point
+                    candidates = [c]
+                elif this_as_point > as_point_min:
+                    pass
+                else:
+                    candidates.append(c)
+                     
+            if len(candidates) > 0:
+                card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
+                 
+                # Remove small cards in shortage suit.
+                for di in card_num_stat_sorted:
+                    suit, num = di
+                    if num == 0:
                         continue
-                    
-                    if self.htapi.calc_score([c]) != 0:
-                        # Avoid giving out score cards for sm player
-                        continue
-                    
-                    if as_point_min == None:
-                        as_point_min = this_as_point
-                        candidates = [c]
-                    elif this_as_point < as_point_min:
-                        as_point_min = this_as_point
-                        candidates = [c]
-                    else:
-                        candidates.append(c)
-        
-                        
-                if len(candidates) > 0:
-                    card_num_stat_sorted = self._calc_hand_cards_num(my_hand_cards)
-                    
-                    # Remove small cards in shortage suit.
-                    for di in card_num_stat_sorted:
-                        suit, num = di
-                        if num == 0:
-                            continue
-                        
-                        prefer_candidates = self.htapi.get_cards_by_suit(candidates, suit)
-                        if len(prefer_candidates) > 0:
-                            prefer_candidates = self.htapi.arrange_cards(prefer_candidates)
-                            return prefer_candidates[-1]
+                     
+                    prefer_candidates = self.htapi.get_cards_by_suit(candidates, suit)
+                    if len(prefer_candidates) > 0:
+                        prefer_candidates = self.htapi.arrange_cards(prefer_candidates)
+                        return prefer_candidates[-1]
         #
         # Shoot QS out if I have chance.
         #
@@ -976,6 +998,8 @@ class HacBotV(PokerBot, Htapi):
             elif this_as_point < as_point_min:
                 as_point_min = this_as_point
                 candidates = [c]
+            elif this_as_point > as_point_min:
+                pass
             else:
                 candidates.append(c)
 
@@ -1008,6 +1032,8 @@ class HacBotV(PokerBot, Htapi):
             elif this_as_point < as_point_min:
                 as_point_min = this_as_point
                 candidates = [c]
+            elif this_as_point > as_point_min:
+                pass
             else:
                 candidates.append(c)
         
