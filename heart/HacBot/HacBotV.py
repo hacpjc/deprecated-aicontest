@@ -5,7 +5,7 @@ class HacBotV(PokerBot, Htapi):
     """
     Anti-Score Mode (AS)
     Shoot-Moon Mode (SM)
-    ...Player: HacBotV, score: -8, score_accl: 21499, score_negative_accl:-54317, shoot_moon_accl: 254, winner: [2262, 1816, 1234, 1088]
+    ...Player: HacBotV, score: 0, score_accl: 24516, score_negative_accl:-56136, shoot_moon_accl: 273, winner: [2234, 1790, 1280, 1096]
     """
     SM_THOLD_PASS3 = 10.0
     SM_THOLD_PICK = 14.0
@@ -861,17 +861,17 @@ class HacBotV(PokerBot, Htapi):
                 if card != None:
                     return card
             
-            # Shoot heart card but reserve the biggest rank
-            my_heart_cards = self.htapi.get_cards_by_suit(my_avail_cards, 'H')
-            if len(my_heart_cards) >= 2:
-                my_heart_cards = self.htapi.arrange_cards(my_heart_cards)
-                
-                my_2nd_heart_card = my_heart_cards[-2]
-                score = self._calc_as_point(my_2nd_heart_card, oppo_unused_cards)
-                
-                if score < 0.5:
-                    # Remove the 2nd dangerous heart.
-                    return my_2nd_heart_card
+#             # Shoot heart card but reserve the biggest rank
+#             my_heart_cards = self.htapi.get_cards_by_suit(my_avail_cards, 'H')
+#             if len(my_heart_cards) >= 2:
+#                 my_heart_cards = self.htapi.arrange_cards(my_heart_cards)
+#                 
+#                 my_2nd_heart_card = my_heart_cards[-2]
+#                 score = self._calc_as_point(my_2nd_heart_card, oppo_unused_cards)
+#                 
+#                 if score < 0.5:
+#                     # Remove the 2nd dangerous heart.
+#                     return my_2nd_heart_card
             
             # Shoot no-score cards     
             candidates = []
@@ -884,7 +884,7 @@ class HacBotV(PokerBot, Htapi):
                     # But if I am the lead... I will eat 100%.
                     continue
                  
-                if self.htapi.calc_score([c]) != 0:
+                if len(self.htapi.find_score_cards([c])) > 0:
                     # Avoid giving out score cards for sm player
                     continue
                  
