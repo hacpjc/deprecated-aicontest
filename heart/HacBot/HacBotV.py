@@ -1049,6 +1049,10 @@ class HacBotV(PokerBot, Htapi):
         
         round_cards = self._get_round_cards()
         lead_card = round_cards[0]
+        filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+        filtered_round_cards_sorted = self.htapi.arrange_cards(filtered_round_cards)
+        
+        round_score_cards = self.htapi.find_score_cards(round_cards)
         
         oppo_same_suit_cards = self._get_unused_cards_by_suits(my_hand_cards, [lead_card.get_suit()])
         
@@ -1061,10 +1065,20 @@ class HacBotV(PokerBot, Htapi):
             if card2shoot != None:
                 return card2shoot
             else:                
-                if self.stat['sm_mode'] == False and len(oppo_same_suit_cards) > 9:
-                    return self.htapi.pick_big_card(my_avail_cards)
+                # I don't have smaller cards, so I am possible to eat the trick. Avoid picking QS here, or I will eat it myself.
+                my_no_score_cards = self.htapi.find_no_score_cards(my_avail_cards)
+                if len(my_no_score_cards) > 0:
+                    # Prefer no score card to decrease the score I will eat.
+                    
+                    if len(oppo_same_suit_cards) > 9 and len(round_score_cards) == 0:
+                        # Gamble! Pick a big card and guess the next player have the same suit.
+                        # TODO: Improve...  
+                        return self.htapi.pick_big_card(my_no_score_cards)
+                    else:
+                        return self.htapi.pick_small_card(my_no_score_cards)
                 else:
-                    return self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
+                    # All cards left are score cards... what can I do...
+                    return self.htapi.pick_small_card(my_avail_cards)
         else:
             #
             # I don't have the same suit. Can do anything.
