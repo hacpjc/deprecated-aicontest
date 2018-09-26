@@ -1099,7 +1099,14 @@ class HacBotV(PokerBot, Htapi):
                     else:
                         return self.htapi.pick_bigger_card(my_avail_cards, filtered_round_cards)
             else:
-                return self.htapi.pick_big_card(my_avail_cards)
+                # No score card on table. Choose any no score card first.
+                # Pick the score card if I have no choice.
+                my_no_score_cards = self.htapi.find_no_score_cards(my_avail_cards)
+                
+                if len(my_no_score_cards) > 0:
+                    return self.htapi.pick_big_card(my_no_score_cards)   
+                else:                
+                    return self.htapi.pick_big_card(my_avail_cards)
         else:
             return self._pick_card_as_mode_freeplay(data)
         
