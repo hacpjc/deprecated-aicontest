@@ -1079,6 +1079,8 @@ class HacBotV(PokerBot, Htapi):
         
         round_cards = self._get_round_cards()
         lead_card = round_cards[0]
+        filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
+        filtered_round_cards_sorted = self.htapi.arrange_cards(filtered_round_cards)
         
         oppo_same_suit_cards = self._get_unused_cards_by_suits(my_hand_cards, [lead_card.get_suit()])
         
@@ -1089,7 +1091,6 @@ class HacBotV(PokerBot, Htapi):
             # I have the lead suit... Don't have many choice...
             #
             if len(round_score_cards) > 0:
-                filtered_round_cards = self.htapi.get_cards_by_suit(round_cards, lead_card.get_suit())
                 card2shoot = self.htapi.pick_smaller_card(my_avail_cards, filtered_round_cards, auto_choose_big=False)
                 if card2shoot != None:
                     return card2shoot
@@ -1101,11 +1102,25 @@ class HacBotV(PokerBot, Htapi):
             else:
                 # No score card on table. Choose any no score card first.
                 # Pick the score card if I have no choice.
-                my_no_score_cards = self.htapi.find_no_score_cards(my_avail_cards)
-                
-                if len(my_no_score_cards) > 0:
-                    return self.htapi.pick_big_card(my_no_score_cards)   
-                else:                
+                current_winner_card = filtered_round_cards_sorted[-1]
+
+                candidates = []
+                for c in my_avail_cards:
+                    if len(self.htapi.find_score_cards([c])) > 0 and c.get_rank_num() > current_winner_card.get_rank_num():
+                        # This is a score card and will eat the trick. Don't shoot it.
+                        pass
+                    else:
+                        candidates.append(c)
+                        
+                if len(candidates) > 0:
+                    candidates = self.htapi.arrange_cards(candidates)
+                    score_candidates = self.htapi.find_score_cards(candidates)
+                    if len(score_candidates) > 0:
+                        return self.htapi.pick_big_card(score_candidates)
+                    else:
+                        return self.htapi.pick_big_card(candidates)
+                else:
+                    # I don't have good candidates. Usually means I will eat the trick myself.
                     return self.htapi.pick_big_card(my_avail_cards)
         else:
             return self._pick_card_as_mode_freeplay(data)
