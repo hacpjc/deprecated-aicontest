@@ -59,7 +59,7 @@ class HacDriverII(Hacjpg):
             'history_max': 10,
             # speed error tolerance
             'speed_max': 1.00,
-            'speed_min': 0.80,
+            'speed_min': 0.70,
             'speed_uturn': 0.70,
             'speed_turn': 0.80,
             'speed_update_unit': 0.015,
@@ -816,9 +816,8 @@ class HacDriverII(Hacjpg):
                 if my_position == 'left':
                     self.dyn['road_obstacle'] = False
                 else:
-                    msg("Bee. Bee. Bee")
-                    
                     if self.history_get_brake() > 0:
+                        msg("Bee. Bee. Bee")
                         self.dyn['sta_manual_ctrl'] = 12
                     return
             else:
@@ -826,8 +825,8 @@ class HacDriverII(Hacjpg):
                 if my_position == 'right':
                     self.dyn['road_obstacle'] = False
                 else:
-                    msg("Bee. Bee. Bee")
                     if self.history_get_brake() > 0:
+                        msg("Bee. Bee. Bee")
                         self.dyn['sta_manual_ctrl'] = -12
                     return
         
