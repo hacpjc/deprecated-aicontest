@@ -45,8 +45,8 @@ class HacDriverII(Hacjpg):
         # Constant Car configurations
         #
         self.spec = {
-            # Expect fps to run this program. Do not change this fps if you are not srue :-)
-            'fps': 13.0,
+            # Expect fps to run this program, i.e. average fps.
+            'fps': 12.0,
             # Throttle -1.0 ~ 1.0. brk 1.0 means throttle -1.0
             'tho_max': 0.5,
             'tho_min': 0.0,
@@ -61,7 +61,7 @@ class HacDriverII(Hacjpg):
             'history_max': 10,
             # speed error tolerance
             'speed_max': 1.00,
-            'speed_min': 0.65,
+            'speed_min': 0.70,
             'speed_uturn': 0.65,
             'speed_turn': 0.70,
             'speed_update_unit': 0.015,
@@ -95,7 +95,7 @@ class HacDriverII(Hacjpg):
             'sta_manual_ctrl': 0.0,
             # Collision recover
             # Expected speed
-            'speed': self.spec['speed_min'],
+            'speed': self.spec['speed_uturn'],
             'speed_inc_cnt': 0,
             }
         
@@ -450,12 +450,18 @@ class HacDriverII(Hacjpg):
         #           
         if ri_area_percent < 50:
             factor = 250.0 / float(1 + ri_area_percent)
+        elif ri_area_percent < 55:
+            factor = 200.0 / float(1 + ri_area_percent)
+        elif ri_area_percent < 60:
+            factor = 160.0 / float(1 + ri_area_percent)
+        elif ri_area_percent < 65:
+            factor = 140.0 / float(1 + ri_area_percent)
         elif ri_area_percent < 70:
-            factor = 180.0 / float(1 + ri_area_percent)
+            factor = 125.0 / float(1 + ri_area_percent)
         elif ri_area_percent < 75:
-            factor = 120.0 / float(1 + ri_area_percent)
+            factor = 110.0 / float(1 + ri_area_percent)
         else:
-            factor = 80.0 / float(1 + ri_area_percent)
+            factor = 85.0 / float(1 + ri_area_percent)
             
         #
         # If fps is low, high sta will lead to unstable steering.
@@ -476,10 +482,10 @@ class HacDriverII(Hacjpg):
                 # Possibly in strait road. Raise speed.
                 self.update_speed_abs(increase=True)
             
-            if abs(self.dyn['ri_angle'] - 90) > 20:
+            if abs(ri_cpoint_angle) > 15:
                 self.update_speed_abs(increase=False)
         elif ri_area_percent >= 65:
-            # Turn
+            # Pre-Turn
             self.update_speed_abs(increase=False)
         elif ri_area_percent >= 50:
             # Turn
@@ -573,7 +579,7 @@ class HacDriverII(Hacjpg):
                     Urgent brake (ABS)
                     """
                     vbsmsg("ABS brake")
-                    return (latest_tho / 2.0, 0.0)
+                    return (latest_tho / 4.0, 0.0)
                 
                 tho = round((latest_tho * 3) / 4.0, 4)
                 return (tho, 0.0)
