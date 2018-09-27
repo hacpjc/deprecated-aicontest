@@ -45,6 +45,8 @@ class HacDriverII(Hacjpg):
         # Constant Car configurations
         #
         self.spec = {
+            # system fps
+            'fps': 15,
             # Throttle -1.0 ~ 1.0. brk 1.0 means throttle -1.0
             'tho_max': 0.5,
             'tho_min': 0.0,
@@ -59,9 +61,9 @@ class HacDriverII(Hacjpg):
             'history_max': 10,
             # speed error tolerance
             'speed_max': 1.00,
-            'speed_min': 0.70,
-            'speed_uturn': 0.70,
-            'speed_turn': 0.80,
+            'speed_min': 0.62,
+            'speed_uturn': 0.65,
+            'speed_turn': 0.70,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
@@ -95,6 +97,14 @@ class HacDriverII(Hacjpg):
             # Expected speed
             'speed': self.spec['speed_min'],
             'speed_inc_cnt': 0,
+            }
+        
+        self.fps = {
+            # FPS stat
+            'fps': self.spec['fps'],
+            'fps_st': time.time(),
+            'fps_ed': 0.0,
+            'fps_cnt': 0,
             }
         
     def _init_traffic_sign(self):
@@ -430,14 +440,14 @@ class HacDriverII(Hacjpg):
         #
         # This can help to reduce left-right-left-right wheel concussion.
         #
-        factor = (1.0 - math.sqrt(concussion_rate))
+        factor = (1.0 - concussion_rate)
         out_sta *= factor 
         
         #
         # sta calibrate - area, if the area is small, the road is far. Unlock sta
         #
         # Usually 75% in normal road. If it's < 50%, take care.
-        #
+        #           
         if ri_area_percent < 50:
             factor = 250.0 / float(1 + ri_area_percent)
         elif ri_area_percent < 70:
@@ -447,6 +457,13 @@ class HacDriverII(Hacjpg):
         else:
             factor = 80.0 / float(1 + ri_area_percent)
             
+        #
+        # If fps is low, high sta will lead to unstable steering.
+        #
+        fps = self.fps['fps'] 
+        if fps <= self.spec['fps'] and fps > 5:
+            factor *= (fps / float(self.spec['fps'])) 
+               
         out_sta *= factor
         
         #
@@ -459,7 +476,7 @@ class HacDriverII(Hacjpg):
                 # Possibly in strait road. Raise speed.
                 self.update_speed_abs(increase=True)
             
-            if abs(self.dyn['ri_angle'] - 90) > 15:
+            if abs(self.dyn['ri_angle'] - 90) > 20:
                 self.update_speed_abs(increase=False)
         elif ri_area_percent >= 65:
             # Turn
@@ -883,6 +900,18 @@ class HacDriverII(Hacjpg):
         #
         self.camera_task_obstacle()
         
+    def fps_calc(self):
+        self.fps['fps_cnt'] += 1
+        
+        nowtime = time.time()
+        self.fps['fps_ed'] = nowtime
+        if abs(self.fps['fps_ed'] - self.fps['fps_st']) >= 1.0:
+            self.fps['fps'] = self.fps['fps_cnt']
+            
+            self.fps['fps_cnt'] = 0
+            self.fps['fps_st'] = nowtime
+            vbsmsg("fps: " + format(self.fps['fps']))
+        
     def try2drive(self, img, dashboard):
         """
         Input: {"status": "0", "throttle": "0.0200", "brakes": "0.0000",
@@ -896,15 +925,15 @@ class HacDriverII(Hacjpg):
         #
         self.history_update(dashboard)
         
+        #
+        # fps
+        #
+        self.fps_calc()
+        
         #        
         # Process camera image. Identify my location, the direction, goal, etc.
         #
-        st = time.time()
         self.camera_task(img, dashboard)
-        ed = time.time()
-        time_diff = round(ed - st, 3)
-        if time_diff > 0.15:
-            msg("long response time: ", format(round(ed - st, 3)))
         
         #
         # Calculate sta to maintain direction.
