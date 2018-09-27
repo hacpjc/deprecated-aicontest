@@ -45,8 +45,8 @@ class HacDriverII(Hacjpg):
         # Constant Car configurations
         #
         self.spec = {
-            # system fps
-            'fps': 15,
+            # Expect fps to run this program. Do not change this fps if you are not srue :-)
+            'fps': 13.0,
             # Throttle -1.0 ~ 1.0. brk 1.0 means throttle -1.0
             'tho_max': 0.5,
             'tho_min': 0.0,
@@ -61,7 +61,7 @@ class HacDriverII(Hacjpg):
             'history_max': 10,
             # speed error tolerance
             'speed_max': 1.00,
-            'speed_min': 0.62,
+            'speed_min': 0.65,
             'speed_uturn': 0.65,
             'speed_turn': 0.70,
             'speed_update_unit': 0.015,
@@ -461,7 +461,7 @@ class HacDriverII(Hacjpg):
         # If fps is low, high sta will lead to unstable steering.
         #
         fps = self.fps['fps'] 
-        if fps <= self.spec['fps'] and fps > 5:
+        if fps <= self.spec['fps'] and fps > (self.spec['fps'] / 2.0):
             factor *= (fps / float(self.spec['fps'])) 
                
         out_sta *= factor
@@ -573,8 +573,7 @@ class HacDriverII(Hacjpg):
                     Urgent brake (ABS)
                     """
                     vbsmsg("ABS brake")
-                    brk = self.spec['brk_min']
-                    return (0.0, brk)
+                    return (latest_tho / 2.0, 0.0)
                 
                 tho = round((latest_tho * 3) / 4.0, 4)
                 return (tho, 0.0)
@@ -726,14 +725,14 @@ class HacDriverII(Hacjpg):
         """
         latest_hist = self.history_get(0)
         
-        img = copy.deepcopy(self.img)
+        img = self.img
         
         # Cut top half to remove useless data
         img = self.hacjpg.crosscut(img, 0.55, 1.0)
         
         # Reduce size to increase performance
         width, height = self.hacjpg.get_resolution(img)
-        img = self.hacjpg.resize(img, width / 2, height / 2)
+        img = self.hacjpg.resize(img, width / 4, height / 4)
         
         # Normalize color to reduce the problem
         img = self.hacjpg.flatten2rgb(img)
@@ -814,7 +813,7 @@ class HacDriverII(Hacjpg):
             vbsmsg(format(top_output), ", action: " + action)
             
             self.camera_task_follow_action(action)
-        
+            
     def camera_task_obstacle(self):
         """
         Detect wall or obstacle on road. Try to recover or fix.
