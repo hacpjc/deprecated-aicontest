@@ -61,8 +61,8 @@ class HacDriverII(Hacjpg):
             'history_max': 10,
             # speed error tolerance
             'speed_max': 1.00,
-            'speed_min': 0.70,
-            'speed_uturn': 0.65,
+            'speed_min': 0.65,
+            'speed_uturn': 0.68,
             'speed_turn': 0.70,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
@@ -461,7 +461,7 @@ class HacDriverII(Hacjpg):
         elif ri_area_percent < 75:
             factor = 110.0 / float(1 + ri_area_percent)
         else:
-            factor = 85.0 / float(1 + ri_area_percent)
+            factor = 80.0 / float(1 + ri_area_percent)
             
         #
         # If fps is low, high sta will lead to unstable steering.
