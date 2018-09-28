@@ -476,10 +476,14 @@ class HacBotV(PokerBot, Htapi):
             return True
 
         if sm_ability > self.SM_THOLD_PICK:
+            my_hand_cards = self._get_hand_cards()
+            my_avail_cards = self._get_avail_cards()
+            oppo_unused_cards = self._get_unused_cards(my_hand_cards)
             
             power_heart_num = 0
             for c in my_avail_cards:
                 this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+                
                 
                 if this_sm_point >= 1.0 and c.get_suit() == 'H':
                     power_heart_num += 1
