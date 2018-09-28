@@ -8,7 +8,7 @@ class HacBotV(PokerBot, Htapi):
     ...Player: HacBotV, score: 0, score_accl: 24516, score_negative_accl:-56136, shoot_moon_accl: 273, winner: [2234, 1790, 1280, 1096]
     """
     SM_THOLD_PASS3 = 8.0
-    SM_THOLD_PICK = 8.4
+    SM_THOLD_PICK = 9.0
     AS_THOLD_PASS3 = 7.0
     
     def __init__(self, name, is_debug=False):
