@@ -7,9 +7,9 @@ class HacBotV(PokerBot, Htapi):
     Shoot-Moon Mode (SM)
     ...Player: HacBotV, score: 0, score_accl: 24516, score_negative_accl:-56136, shoot_moon_accl: 273, winner: [2234, 1790, 1280, 1096]
     """
-    SM_THOLD_PASS3 = 10.0
-    SM_THOLD_PICK = 14.0
-    AS_THOLD_PASS3 = 8.0
+    SM_THOLD_PASS3 = 8.0
+    SM_THOLD_PICK = 8.4
+    AS_THOLD_PASS3 = 7.0
     
     def __init__(self, name, is_debug=False):
         super(HacBotV, self).__init__(name)
@@ -39,6 +39,7 @@ class HacBotV(PokerBot, Htapi):
         
         self.stat['expose_ah_mode'] = False
         self.stat['sm_mode'] = True
+        self.stat['sm_mode_started'] = False
         
         self.stat['pass3_as_ability'] = 0
         self.stat['pass3_as_ability_history'] = []
@@ -430,7 +431,8 @@ class HacBotV(PokerBot, Htapi):
         for c in my_hand_cards:
             this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
             if this_sm_point >= 1.0:
-                my_sm_point += this_sm_point * 2
+                # Power card
+                my_sm_point += this_sm_point
             else:    
                 my_sm_point += this_sm_point
                 
@@ -450,7 +452,7 @@ class HacBotV(PokerBot, Htapi):
         for c in my_hand_cards:
             this_as_point = self._calc_as_point(c, oppo_unused_cards)
             if this_as_point >= 1.0:
-                my_as_point += this_as_point * 2
+                my_as_point += this_as_point
             else:    
                 my_as_point += this_as_point       
         
@@ -469,7 +471,21 @@ class HacBotV(PokerBot, Htapi):
         if self.stat['sm_mode'] == False:
             return False
 
+        if self.stat['sm_mode_started'] == True:
+            # Already starting to sm. Don't stop.
+            return True
+
         if sm_ability > self.SM_THOLD_PICK:
+            
+            power_heart_num = 0
+            for c in my_avail_cards:
+                this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+                
+                if this_sm_point >= 1.0 and c.get_suit() == 'H':
+                    power_heart_num += 1
+            
+            
+            self.stat['sm_mode_started'] = True
             return True
                 
         return False
@@ -1301,6 +1317,7 @@ class HacBotV(PokerBot, Htapi):
         
         self.stat['usedCard'] = []
         self.stat['sm_mode'] = True
+        self.stat['sm_mode_started'] = False 
         self.stat['expose_ah_mode'] = False
         self.stat['pass3_sm_ability'] = 0.0
         self.stat['pass3_as_ability'] = 0.0
