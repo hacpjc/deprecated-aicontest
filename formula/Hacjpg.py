@@ -1367,7 +1367,7 @@ def unitest_reindeer4(path):
     #
     img = hacjpg.crosscut(img, 0.52, 1.0)
     reso_x, reso_y = hacjpg.get_resolution(img)
-    img = hacjpg.resize(img, reso_x / 2, reso_y / 2)
+    img = hacjpg.resize(img, int(reso_x / 2), int(reso_y / 2))
     reso_x, reso_y = hacjpg.get_resolution(img)
 
 #     img = hacjpg.color_quantization(img)
