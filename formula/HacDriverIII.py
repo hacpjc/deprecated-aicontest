@@ -24,7 +24,7 @@ def vbsmsg(*argv):
     sys.stdout.write("".join(list(argv)) + "\n")
     sys.stdout.flush()
 
-class HacDriverII(Hacjpg):
+class HacDriverIII(Hacjpg):
     """
     This is the main class to drive the car. See try2drive method.
     """
@@ -55,8 +55,8 @@ class HacDriverII(Hacjpg):
             'brk_min': 0.0,
             'brk_unit': 0.01,
             # Steering angle -40 ~ 40 degree
-            'sta_max': 30,
-            'sta_min': -30,
+            'sta_max': 35,
+            'sta_min': -35,
             # history
             'history_max': 10,
 

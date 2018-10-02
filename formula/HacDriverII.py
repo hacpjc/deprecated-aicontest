@@ -661,11 +661,10 @@ class HacDriverII(Hacjpg):
         img = self.dyn['ri_img']
         
         # Want to go left, but I am on right... so choose the red lane
-        prefer_rgb_fixed = [(255, 0, 0), (0, 255, 0), (0, 0, 255)]
+        prefer_rgb_fixed = [(255, 0, 0), (0, 0, 255)]
         prefer_left = False
         for prefer_rgb in prefer_rgb_fixed:
             reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
-            prefer_left = True if prefer_left == False else False
             ri_cpoint, ri_angle, ri_ap_all = reindeer
             
             if ri_cpoint != None:
@@ -676,16 +675,17 @@ class HacDriverII(Hacjpg):
                 break
             else:
                 msg("Cannot turn to left side")
+
+            prefer_left = True if prefer_left == False else False
         
     def __camera_task_reindeer_goright(self):
         img = self.dyn['ri_img']
         
         # Want to go right, but I am on left... so choose the green lane
-        prefer_rgb_fixed = [(0, 255, 0), (255, 0, 0), (0, 0, 255)]
+        prefer_rgb_fixed = [(0, 255, 0), (0, 0, 255)]
         prefer_left = True
         for prefer_rgb in prefer_rgb_fixed:
             reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
-            prefer_left = True if prefer_left == False else False
             ri_cpoint, ri_angle, ri_ap_all = reindeer
             
             if ri_cpoint != None:
@@ -696,7 +696,9 @@ class HacDriverII(Hacjpg):
                 break
             else:
                 msg("Cannot turn to right side")
-    
+
+            prefer_left = True if prefer_left == False else False
+
     def __camera_task_reindeer_aftercare(self):
         """
         If I get an proper reindeer result.
@@ -738,7 +740,7 @@ class HacDriverII(Hacjpg):
         
         # Reduce size to increase performance
         width, height = self.hacjpg.get_resolution(img)
-        img = self.hacjpg.resize(img, width / 4, height / 4)
+        img = self.hacjpg.resize(img, int(width / 4), int(height / 4))
         
         # Normalize color to reduce the problem
         img = self.hacjpg.flatten2rgb(img)
@@ -760,7 +762,6 @@ class HacDriverII(Hacjpg):
         prefer_left = self.dyn['road_prefer_left']
         for prefer_rgb in self.dyn['road_prefer_rgb']:
             reindeer = self.hacjpg.reindeer4(img, rgb=prefer_rgb, prefer_left=prefer_left)
-            prefer_left = True if prefer_left == False else False
             self.dyn['ri_cpoint'], self.dyn['ri_angle'], self.dyn['ri_area_percent_all'] = reindeer
             
             if self.dyn['ri_cpoint'] != None:
@@ -770,6 +771,8 @@ class HacDriverII(Hacjpg):
             else:
                 vbsmsg("reindeer lost: ", format(prefer_rgb))
                 pass
+
+            prefer_left = True if prefer_left == False else False
                     
         if self.dyn['ri_cpoint'] != None:
             # Calculate the angle from zero point to cpoint, can imagine this is the wheel angle!
@@ -851,25 +854,35 @@ class HacDriverII(Hacjpg):
                         msg("Bee. Bee. Bee")
                         self.dyn['sta_manual_ctrl'] = -12
                     return
-        
-        if allap['black'] > 30 and self.history_get_speed() < 0.04:
+
+        if self.history_get_speed() < 0.04:
             msg("Car in danger!!!")
-            
-            if allap['black'] > 80:
-                msg("Sight is not clear... Try back.")
-                self.dyn['tho_manual_ctrl'] = -0.2
-                return                
-            
-            self.dyn['road_obstacle'] = True
-            
-            self.dyn['tho_manual_ctrl'] = -0.3
-            
-            if self.dyn['road_prefer_left'] == True:
-                self.camera_task_follow_action('right')
-                self.dyn['sta_manual_ctrl'] = -3
-            else:
-                self.camera_task_follow_action('left')
-                self.dyn['sta_manual_ctrl'] = 3
+
+            if allap['black'] > 95:
+                #
+                # Possibly a wall
+                #
+                self.dyn['tho_manual_ctrl'] = self.spec['brk_max'] * (-1)
+
+            elif allap['black'] > 30:
+                #
+                # Possibly a obstacle
+                #
+                if allap['black'] > 80:
+                    msg("Sight is not clear... Try back.")
+                    self.dyn['tho_manual_ctrl'] = -0.2
+                    return
+
+                self.dyn['road_obstacle'] = True
+
+                self.dyn['tho_manual_ctrl'] = -0.3
+
+                if self.dyn['road_prefer_left'] == True:
+                    self.camera_task_follow_action('right')
+                    self.dyn['sta_manual_ctrl'] = -3
+                else:
+                    self.camera_task_follow_action('left')
+                    self.dyn['sta_manual_ctrl'] = 3
 
     def camera_task_position(self):
         allap = self.dyn['ri_area_percent_all']
