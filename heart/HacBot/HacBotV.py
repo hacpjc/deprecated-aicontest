@@ -342,11 +342,6 @@ class HacBotV(PokerBot, Htapi):
             self.htapi.dbg("shoot moon mode pass3: " + str(sm_ability))
             return self._pass_cards_sm_mode(data)
         else:
-            
-#             if as_ability >= self.AS_THOLD_PASS3:
-#                 self.htapi.dbg("Possibly do not have chance to sm because of high as ability: ", format(as_ability))
-#                 self.stat['sm_mode'] = False
-            
             self.htapi.dbg("anti score mode pass3")
             return self._pass_cards_as_mode(data)
 
@@ -477,18 +472,17 @@ class HacBotV(PokerBot, Htapi):
 
         if sm_ability > self.SM_THOLD_PICK:
             my_hand_cards = self._get_hand_cards()
-            my_avail_cards = self._get_avail_cards()
             oppo_unused_cards = self._get_unused_cards(my_hand_cards)
-            
+            my_heart_cards = self.htapi.get_cards_by_suit(my_hand_cards, 'H')
+
             power_heart_num = 0
-            for c in my_avail_cards:
+            for c in my_hand_cards:
                 this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
-                
-                
+
                 if this_sm_point >= 1.0 and c.get_suit() == 'H':
                     power_heart_num += 1
 
-            if power_heart_num == 0:
+            if power_heart_num == 0 and len(my_heart_cards) > 0:
                 return False
             
             self.stat['sm_mode_started'] = True
