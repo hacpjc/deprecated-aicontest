@@ -487,7 +487,9 @@ class HacBotV(PokerBot, Htapi):
                 
                 if this_sm_point >= 1.0 and c.get_suit() == 'H':
                     power_heart_num += 1
-            
+
+            if power_heart_num == 0:
+                return False
             
             self.stat['sm_mode_started'] = True
             return True
