@@ -503,14 +503,7 @@ class HacBotV(PokerBot, Htapi):
         my_hand_cards = self._get_hand_cards()
         my_avail_cards = self._get_avail_cards()
         oppo_unused_cards = self._get_unused_cards(my_hand_cards)
-        
-        for c in my_avail_cards:
-            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
-            
-            if this_sm_point >= 1.0 and c.get_suit() == 'H':
-                self.htapi.dbg("This card will win..." + format(c))
-                return c
-            
+
         for c in my_avail_cards:
             this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
             
@@ -524,7 +517,14 @@ class HacBotV(PokerBot, Htapi):
             if this_sm_point >= 1.0:
                 self.htapi.dbg("This card will win..." + format(c))
                 return c
-        
+
+        for c in my_avail_cards:
+            this_sm_point = self._calc_sm_point(c, oppo_unused_cards)
+
+            if this_sm_point >= 1.0 and c.get_suit() == 'H':
+                self.htapi.dbg("This card will win..." + format(c))
+                return c
+
         # Pick short suit candidates
         self.htapi.dbg("Low strength stage... I am weak :-(.")
         
