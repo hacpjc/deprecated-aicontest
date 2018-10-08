@@ -61,15 +61,10 @@ class HacDriverIII(Hacjpg):
             'history_max': 10,
 
             # speed error tolerance
-            # 'speed_max': 1.00,
-            # 'speed_min': 0.65,
-            # 'speed_uturn': 0.68,
-            # 'speed_turn': 0.70,
-            'speed_max': 1.40,
-            'speed_min': 0.9,
-            'speed_uturn': 0.9,
-            'speed_turn': 0.95,
-
+            'speed_max': 1.00,
+            'speed_min': 0.65,
+            'speed_uturn': 0.68,
+            'speed_turn': 0.70,
             'speed_update_unit': 0.015,
             'speed_back_limit': -1.0,
             }
